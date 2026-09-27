@@ -98,89 +98,30 @@
             z-index: 1;
         }
 
-        /* ==================== LOGIN PAGE - NIGHT SKY ==================== */
+        /* ==================== LOGIN PAGE ==================== */
         .login-page {
             min-height: 100vh;
             display: flex;
-            background: #000000;
-            background-image: 
-                radial-gradient(2px 2px at 20px 30px, #eee, transparent),
-                radial-gradient(2px 2px at 60px 70px, rgba(255,255,255,0.8), transparent),
-                radial-gradient(1px 1px at 50px 50px, #fff, transparent),
-                radial-gradient(1px 1px at 20px 40px, rgba(255,255,255,0.6), transparent),
-                radial-gradient(2px 2px at 90px 20px, rgba(255,255,255,0.7), transparent),
-                radial-gradient(1px 1px at 130px 80px, rgba(255,255,255,0.5), transparent),
-                radial-gradient(1px 1px at 160px 30px, rgba(255,255,255,0.6), transparent);
-            background-repeat: repeat;
-            background-size: 200px 100px;
+            align-items: center;
+            justify-content: center;
+            background: #0a0a0a;
             position: relative;
             overflow-x: hidden;
             overflow-y: auto;
+            padding: 40px 20px;
         }
 
-        .login-page::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
+        .login-card {
             width: 100%;
-            height: 100%;
-            background: 
-                radial-gradient(2px 2px at 40px 60px, #fff, transparent),
-                radial-gradient(1px 1px at 100px 120px, rgba(255,255,255,0.8), transparent),
-                radial-gradient(2px 2px at 150px 40px, rgba(255,255,255,0.6), transparent),
-                radial-gradient(1px 1px at 200px 100px, rgba(255,255,255,0.7), transparent),
-                radial-gradient(1px 1px at 250px 60px, rgba(255,255,255,0.5), transparent);
-            background-repeat: repeat;
-            background-size: 300px 150px;
-            animation: twinkle 8s ease-in-out infinite alternate;
-            pointer-events: none;
+            max-width: 420px;
+            position: relative;
+            z-index: 1;
         }
-
-        /* Falling stars */
-        .login-stars {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            pointer-events: none;
-        }
-
-        .falling-star {
-            position: absolute;
-            width: 2px;
-            height: 2px;
-            background: #fff;
-            border-radius: 50%;
-            box-shadow: 0 0 6px 2px rgba(255,255,255,0.6);
-            animation: fallingStar linear infinite;
-        }
-
-        .falling-star::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 80px;
-            height: 1px;
-            background: linear-gradient(90deg, rgba(255,255,255,0.8), transparent);
-            transform: rotate(-45deg) translateX(-100%);
-            transform-origin: right;
-        }
-
-        @keyframes fallingStar {
-            0% { transform: translateY(-100px) translateX(0); opacity: 1; }
-            70% { opacity: 1; }
-            100% { transform: translateY(100vh) translateX(300px); opacity: 0; }
-        }
-
 
         .login-left {
-            flex: 1;
+            width: 100%;
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            padding: 60px;
             position: relative;
             z-index: 1;
         }
@@ -264,21 +205,144 @@
 
         .login-title {
             font-family: var(--goat-terminal), ui-monospace, monospace;
-            font-size: 26px;
+            font-size: 28px;
             font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.14em;
-            margin-bottom: 10px;
-            color: var(--goat-copy);
-            text-shadow: 0 0 18px rgba(198, 210, 230, 0.18);
+            text-transform: none;
+            letter-spacing: 0.02em;
+            margin-bottom: 8px;
+            color: #f4f4f5;
+            text-shadow: none;
         }
 
         .login-subtitle {
-            color: var(--goat-copy-muted);
+            color: #a1a1aa;
             font-size: 13px;
-            margin-bottom: 40px;
-            text-transform: uppercase;
-            letter-spacing: 0.12em;
+            margin-bottom: 28px;
+            text-transform: none;
+            letter-spacing: 0.01em;
+            line-height: 1.45;
+        }
+
+        .login-page .form-group label {
+            text-transform: none;
+            letter-spacing: 0.01em;
+            font-weight: 500;
+            font-size: 13px;
+            color: #d4d4d8;
+            margin-bottom: 8px;
+        }
+
+        .login-page .input-field,
+        .login-page .input-wrapper {
+            max-width: none;
+            width: 100%;
+        }
+
+        .login-page .input-field {
+            background: #141414;
+            border: 1px solid #3f3f46;
+            border-radius: 6px;
+            padding: 14px 16px;
+            font-size: 14px;
+        }
+
+        .login-page .input-field:focus {
+            border-color: #71717a;
+            box-shadow: none;
+        }
+
+        .btn-login-continue {
+            width: 100%;
+            margin-top: 4px;
+            padding: 14px 20px;
+            background: #8b8b8b;
+            color: #111;
+            border: none;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            cursor: pointer;
+            font-family: var(--goat-terminal), ui-monospace, monospace;
+        }
+
+        .btn-login-continue:hover {
+            background: #9d9d9d;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .login-create {
+            text-align: center;
+            margin-top: 18px;
+            color: #71717a;
+            font-size: 13px;
+        }
+
+        .login-create a {
+            color: #a1a1aa;
+            font-weight: 500;
+            text-decoration: none;
+        }
+
+        .login-create a:hover {
+            color: #e4e4e7;
+        }
+
+        .login-help {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 28px;
+            padding: 12px 14px;
+            border: 1px solid #27272a;
+            border-radius: 6px;
+            color: #a1a1aa;
+            font-size: 13px;
+            text-decoration: none;
+            background: #0f0f0f;
+        }
+
+        .login-help:hover {
+            color: #e4e4e7;
+            border-color: #3f3f46;
+        }
+
+        .login-help-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #22c55e;
+            box-shadow: 0 0 8px rgba(34, 197, 94, 0.7);
+            flex-shrink: 0;
+        }
+
+        .login-pass-step[hidden] {
+            display: none !important;
+        }
+
+        .login-back {
+            display: none;
+            background: none;
+            border: none;
+            color: #71717a;
+            font-size: 12px;
+            cursor: pointer;
+            padding: 0;
+            margin-bottom: 16px;
+            font-family: inherit;
+            text-align: left;
+        }
+
+        .login-back.is-visible {
+            display: inline-block;
+        }
+
+        .login-page .forgot {
+            display: inline-block;
+            margin-top: 8px;
+            font-size: 12px;
+            color: #71717a;
         }
 
         .form-group {
@@ -4215,27 +4279,11 @@
 
         @media (max-width: 900px) {
             .login-page {
-                flex-direction: column;
-            }
-            .login-right {
-                display: flex;
-                flex: 0 0 auto;
-                order: -1;
-                padding: 28px 20px 12px;
-                min-height: 0;
-                overflow: visible;
+                align-items: flex-start;
+                padding: 48px 20px 32px;
             }
             .login-left {
-                padding: 24px 24px 48px;
-                justify-content: flex-start;
-            }
-            .graphic {
-                width: min(600px, 92vw);
-                aspect-ratio: 1 / 1;
-            }
-            .login-brand-lockup-img--orbit {
-                width: min(92%, 520px);
-                max-width: min(92%, 520px);
+                padding: 0;
             }
         }
 
@@ -5223,11 +5271,17 @@
             background: rgba(255, 255, 255, 0.3);
             transform: translate(-50%, -50%);
             transition: width 0.6s, height 0.6s;
+            pointer-events: none;
         }
 
         .btn:hover::before {
             width: 300px;
             height: 300px;
+        }
+
+        .btn:disabled,
+        .btn[disabled] {
+            pointer-events: none;
         }
 
         .btn-primary {
@@ -7521,70 +7575,38 @@
 <body>
     <!-- ==================== LOGIN PAGE ==================== -->
     <div class="login-page" id="loginPage" style="display: flex;">
-        <!-- Falling Stars -->
-        <div class="login-stars">
-            <div class="falling-star" style="left: 10%; animation-duration: 3s; animation-delay: 0s;"></div>
-            <div class="falling-star" style="left: 25%; animation-duration: 4s; animation-delay: 1s;"></div>
-            <div class="falling-star" style="left: 40%; animation-duration: 3.5s; animation-delay: 2s;"></div>
-            <div class="falling-star" style="left: 55%; animation-duration: 4.5s; animation-delay: 0.5s;"></div>
-            <div class="falling-star" style="left: 70%; animation-duration: 3s; animation-delay: 3s;"></div>
-            <div class="falling-star" style="left: 85%; animation-duration: 5s; animation-delay: 1.5s;"></div>
-        </div>
-        
-        <div class="login-left">
-            <h2 class="login-title" style="animation: fadeInUp 0.8s ease-out 0.2s both;">Welcome back</h2>
-            <p class="login-subtitle" style="animation: fadeInUp 0.8s ease-out 0.3s both;">Sign in to access your account</p>
+        <div class="login-card login-left">
+            <button type="button" class="login-back" id="loginBackBtn" onclick="resetLoginSteps()">← back</button>
+            <h2 class="login-title" id="loginTitle">sign in</h2>
+            <p class="login-subtitle" id="loginSubtitle">enter your email, username, or account number</p>
 
-            <form id="loginForm" style="animation: fadeInUp 0.8s ease-out 0.4s both;">
-                <div class="form-group">
-                    <label>Username</label>
-                    <input type="text" class="input-field" id="username" placeholder="Enter your username" autocomplete="username">
+            <form id="loginForm">
+                <div class="form-group" id="loginIdentifierStep">
+                    <label for="username">email, username, or account number</label>
+                    <input type="text" class="input-field" id="username" placeholder="email, username, or account #" autocomplete="username">
                 </div>
 
-                <div class="form-group">
-                    <label>Password</label>
+                <div class="form-group login-pass-step" id="loginPasswordStep" hidden>
+                    <label for="password">password</label>
                     <div class="input-wrapper">
-                        <input type="password" class="input-field" id="password" placeholder="Enter your password" autocomplete="current-password">
+                        <input type="password" class="input-field" id="password" placeholder="password" autocomplete="current-password">
                         <button type="button" class="toggle-pass" onclick="togglePassword()">Show</button>
                     </div>
+                    <a href="#" class="forgot" onclick="event.preventDefault(); showAnimatedPopup('Password Reset', 'Contact @nonamebackagain on Telegram for password reset.', 'info');">forgot password?</a>
                 </div>
 
-                <div class="form-row">
-                    <label class="remember">
-                        <input type="checkbox" id="remember" checked>
-                        <span class="box"></span>
-                        Remember me
-                    </label>
-                    <a href="#" class="forgot" onclick="event.preventDefault(); showAnimatedPopup('Password Reset', 'Contact @nonamebackagain on Telegram for password reset.', 'info');">Forgot password?</a>
-                </div>
+                <button type="submit" class="btn btn-login-continue" id="loginContinueBtn">continue →</button>
 
-                <div class="captcha-row">
-                    <span class="captcha-q" id="captchaQ">7 + 5 = ?</span>
-                    <input type="text" class="captcha-input" id="captchaAnswer" placeholder="Answer" autocomplete="off">
-                </div>
-
-                <div class="btn-row">
-                    <button type="submit" class="btn btn-primary" style="font-size: 16px; padding: 16px 32px; background: linear-gradient(135deg, #52525b 0%, #18181b 100%); border: none; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.55);">
-                        Sign In
-                    </button>
-                </div>
-                
-                <p style="text-align: center; margin-top: 24px; color: var(--gray); font-size: 14px;">
-                    Don't have an account?
-                    <a href="#" onclick="event.preventDefault(); window.openRegister && window.openRegister();" style="color: var(--blue-light); font-weight: 600;">Create one</a>
+                <p class="login-create">
+                    no account?
+                    <a href="#" onclick="event.preventDefault(); window.openRegister && window.openRegister();">create one</a>
                 </p>
             </form>
-        </div>
 
-        <div class="login-right">
-            <div class="graphic">
-                <div class="graphic-ring"></div>
-                <div class="graphic-ring"></div>
-                <div class="graphic-ring"></div>
-                <div class="login-graphic-brand">
-                    <img src="https://i.postimg.cc/RF5XP5cr/Chat-GPT-Image-May-17-2026-01-14-40-PM-removebg-preview.png" alt="GOATYS" class="login-brand-lockup-img login-brand-lockup-img--orbit" width="1040" height="1040" decoding="async" fetchpriority="high" />
-                </div>
-            </div>
+            <a class="login-help" href="https://t.me/nonamebackagain" target="_blank" rel="noopener noreferrer">
+                <span class="login-help-dot"></span>
+                need help? contact support on telegram →
+            </a>
         </div>
     </div>
 
@@ -8956,9 +8978,33 @@
         }
 
         // Page navigation functions
+        function resetLoginSteps() {
+            var passStep = document.getElementById('loginPasswordStep');
+            var idStep = document.getElementById('loginIdentifierStep');
+            var btn = document.getElementById('loginContinueBtn');
+            var title = document.getElementById('loginTitle');
+            var sub = document.getElementById('loginSubtitle');
+            var back = document.getElementById('loginBackBtn');
+            if (passStep) passStep.hidden = true;
+            if (idStep) idStep.hidden = false;
+            if (btn) btn.textContent = 'continue →';
+            if (title) title.textContent = 'sign in';
+            if (sub) sub.textContent = 'enter your email, username, or account number';
+            if (back) back.classList.remove('is-visible');
+            var pass = document.getElementById('password');
+            if (pass) {
+                pass.value = '';
+                pass.type = 'password';
+            }
+            var toggle = document.querySelector('.toggle-pass');
+            if (toggle) toggle.textContent = 'Show';
+        }
+        window.resetLoginSteps = resetLoginSteps;
+
         function showLogin() {
             document.getElementById('loginPage').style.display = 'flex';
             document.getElementById('dashboardPage').style.display = 'none';
+            resetLoginSteps();
         }
 
         function showDashboard() {
@@ -9654,10 +9700,12 @@
         }
 
         function genCaptcha() {
+            const q = document.getElementById('captchaQ');
+            if (!q) return;
             const a = Math.floor(Math.random() * 10) + 1;
             const b = Math.floor(Math.random() * 10) + 1;
             captchaAnswer = a + b;
-            document.getElementById('captchaQ').textContent = `${a} + ${b} = ?`;
+            q.textContent = `${a} + ${b} = ?`;
         }
 
         function openRegister() {
@@ -13416,7 +13464,18 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
             }
         }
 
+        var cryptoTopUpSubmitInFlight = false;
+
+        function fetchWithTimeout(url, options, ms) {
+            var timeoutMs = ms || 18000;
+            var ctrl = new AbortController();
+            var timer = setTimeout(function () { ctrl.abort(); }, timeoutMs);
+            var opts = Object.assign({}, options || {}, { signal: ctrl.signal });
+            return fetch(url, opts).finally(function () { clearTimeout(timer); });
+        }
+
         async function submitCryptoTopUpRequest() {
+            if (cryptoTopUpSubmitInFlight) return;
             if (!pluxoGetAuthToken() || !userData || !userData.username) {
                 showAnimatedPopup('Login required', 'Sign in before submitting your payment link.', 'error');
                 return;
@@ -13442,7 +13501,8 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
                 return;
             }
             var btn = document.querySelector('#topUpAfterPaidPanel .btn-primary');
-            var btnLabel = btn ? btn.textContent : '';
+            var btnLabel = 'Submit for verification';
+            cryptoTopUpSubmitInFlight = true;
             if (btn) {
                 btn.disabled = true;
                 btn.style.opacity = '0.65';
@@ -13451,33 +13511,35 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
             var d = null;
             var r = null;
             var lastNetErr = null;
-            for (var attempt = 0; attempt < 3; attempt++) {
-                if (attempt > 0) {
-                    await new Promise(function (resolve) {
-                        setTimeout(resolve, 900 * attempt);
-                    });
-                }
-                try {
-                    r = await fetch(BOT_WEBHOOK_URL + '/api/topup/submit', {
-                        method: 'POST',
-                        headers: pluxoAuthHeaders(),
-                        body: JSON.stringify({
-                            username: String(userData.username).toLowerCase().trim(),
-                            amount_usd: amt,
-                            method: paymentMethod,
-                            confirmation_url: confirmation_url.trim()
-                        })
-                    });
-                    d = await r.json().catch(function () { return {}; });
-                    lastNetErr = null;
-                    break;
-                } catch (fetchErr) {
-                    lastNetErr = fetchErr;
-                    r = null;
-                    d = {};
-                }
-            }
             try {
+                for (var attempt = 0; attempt < 2; attempt++) {
+                    if (attempt > 0) {
+                        await new Promise(function (resolve) {
+                            setTimeout(resolve, 700);
+                        });
+                    }
+                    try {
+                        r = await fetchWithTimeout(BOT_WEBHOOK_URL + '/api/topup/submit', {
+                            method: 'POST',
+                            headers: pluxoAuthHeaders(),
+                            body: JSON.stringify({
+                                username: String(userData.username).toLowerCase().trim(),
+                                amount_usd: amt,
+                                method: paymentMethod,
+                                confirmation_url: confirmation_url.trim()
+                            })
+                        }, 18000);
+                        d = await r.json().catch(function () { return {}; });
+                        lastNetErr = null;
+                        break;
+                    } catch (fetchErr) {
+                        lastNetErr = fetchErr && fetchErr.name === 'AbortError'
+                            ? new Error('Request timed out. Check your connection and try again.')
+                            : fetchErr;
+                        r = null;
+                        d = {};
+                    }
+                }
                 if (lastNetErr) {
                     throw lastNetErr;
                 }
@@ -13492,13 +13554,15 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
             } catch (err) {
                 showAnimatedPopup('Submit failed', (err && err.message) ? err.message : String(err), 'error');
             } finally {
+                cryptoTopUpSubmitInFlight = false;
                 if (btn) {
                     btn.disabled = false;
                     btn.style.opacity = '';
-                    btn.textContent = btnLabel || 'Submit for verification';
+                    btn.textContent = btnLabel;
                 }
             }
         }
+        window.submitCryptoTopUpRequest = submitCryptoTopUpRequest;
 
         function showTopUpPendingAnimation(serverMessage) {
             showAnimatedPopup(
@@ -16174,19 +16238,39 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
                 loginForm.addEventListener('submit', (e) => {
                     e.preventDefault();
                     const username = document.getElementById("username").value.trim();
-                    const password = document.getElementById("password").value;
-                    const captchaAns = document.getElementById("captchaAnswer").value.trim();
+                    const passwordEl = document.getElementById("password");
+                    const password = passwordEl ? passwordEl.value : '';
+                    const passStep = document.getElementById('loginPasswordStep');
+                    const idStep = document.getElementById('loginIdentifierStep');
+                    const captchaEl = document.getElementById("captchaAnswer");
                     
-                    // Validate inputs
-                    if (!username) { showAnimatedPopup('Error', 'Enter username', 'error'); return; }
-                    if (!password) { showAnimatedPopup('Error', 'Enter password', 'error'); return; }
-                    
-                    // Validate captcha if it exists
-                    if (typeof captchaAnswer !== 'undefined' && parseInt(captchaAns) !== captchaAnswer) {
-                        showAnimatedPopup('Error', 'Wrong captcha answer', 'error');
-                        if (typeof genCaptcha === 'function') genCaptcha();
-                        document.getElementById("captchaAnswer").value = '';
+                    if (!username) { showAnimatedPopup('Error', 'Enter email, username, or account number', 'error'); return; }
+
+                    if (passStep && passStep.hidden) {
+                        passStep.hidden = false;
+                        if (idStep) idStep.hidden = true;
+                        var btn = document.getElementById('loginContinueBtn');
+                        var title = document.getElementById('loginTitle');
+                        var sub = document.getElementById('loginSubtitle');
+                        var back = document.getElementById('loginBackBtn');
+                        if (btn) btn.textContent = 'sign in →';
+                        if (title) title.textContent = 'welcome back';
+                        if (sub) sub.textContent = 'enter your password to continue';
+                        if (back) back.classList.add('is-visible');
+                        if (passwordEl) setTimeout(function () { passwordEl.focus(); }, 0);
                         return;
+                    }
+
+                    if (!password) { showAnimatedPopup('Error', 'Enter password', 'error'); return; }
+
+                    if (captchaEl) {
+                        const captchaAns = captchaEl.value.trim();
+                        if (typeof captchaAnswer !== 'undefined' && parseInt(captchaAns) !== captchaAnswer) {
+                            showAnimatedPopup('Error', 'Wrong captcha answer', 'error');
+                            if (typeof genCaptcha === 'function') genCaptcha();
+                            captchaEl.value = '';
+                            return;
+                        }
                     }
                     
                     login(username, password);
@@ -16234,11 +16318,13 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
             });
         }
 
-        // Add ripple effect to buttons
+        // Add ripple effect to buttons (bind once — rebinding on every DOM mutation froze Submit)
         function addRippleEffect() {
             const buttons = document.querySelectorAll('.btn, .btn-primary, .btn-secondary, .btn-sm, .btn-create-ticket, .btn-view-ticket');
             
             buttons.forEach(button => {
+                if (button.dataset.rippleBound === '1') return;
+                button.dataset.rippleBound = '1';
                 button.addEventListener('click', function(e) {
                     const ripple = document.createElement('span');
                     const rect = this.getBoundingClientRect();
@@ -16250,6 +16336,7 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
                     ripple.style.left = x + 'px';
                     ripple.style.top = y + 'px';
                     ripple.classList.add('ripple-effect');
+                    ripple.style.pointerEvents = 'none';
                     
                     this.appendChild(ripple);
                     
@@ -16412,16 +16499,27 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
         });
 
         // Re-initialize animations when content changes dynamically
+        var _animReinitTimer = null;
         const observer = new MutationObserver(function(mutations) {
-            mutations.forEach(function(mutation) {
-                if (mutation.addedNodes.length) {
-                    setTimeout(() => {
-                        staggerListItems();
-                        addRippleEffect();
-                        initScrollReveal();
-                    }, 100);
+            var shouldReinit = false;
+            for (var i = 0; i < mutations.length; i++) {
+                var mutation = mutations[i];
+                if (!mutation.addedNodes.length) continue;
+                for (var n = 0; n < mutation.addedNodes.length; n++) {
+                    var node = mutation.addedNodes[n];
+                    if (node.nodeType !== 1) continue;
+                    if (node.classList && node.classList.contains('ripple-effect')) continue;
+                    shouldReinit = true;
+                    break;
                 }
-            });
+                if (shouldReinit) break;
+            }
+            if (!shouldReinit) return;
+            clearTimeout(_animReinitTimer);
+            _animReinitTimer = setTimeout(function () {
+                staggerListItems();
+                addRippleEffect();
+            }, 250);
         });
 
         // Start observing
