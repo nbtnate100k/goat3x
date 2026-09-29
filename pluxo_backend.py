@@ -4136,38 +4136,45 @@ async def tg_users(update, context) -> None:
 
 
 async def tg_stock_base_callback(update, context) -> None:
-    q = update.callback_query
-    if not q or not q.from_user:
-        log_tg(f"[stock_base_callback] Missing callback_query or from_user")
-        return
-    if not _is_staff(q.from_user.id):
-        log_tg(f"[stock_base_callback] User {q.from_user.id} not staff")
-        await q.answer("Not allowed", show_alert=True)
-        return
-    data = (q.data or "").strip()
-    log_tg(f"[stock_base_callback] Received data: {data}")
-    if not data.startswith("stockbase:"):
-        log_tg(f"[stock_base_callback] Data doesn't start with 'stockbase:': {data}")
-        return
-    b = data.split(":", 1)[1].strip().upper()
-    log_tg(f"[stock_base_callback] Extracted base: {b}")
-    with state_lock:
-        ok = b in all_known_stock_bases_unlocked()
-    if not ok:
-        log_tg(f"[stock_base_callback] Unknown base: {b}")
-        await q.answer("Unknown base", show_alert=True)
-        return
-    context.user_data["stock_upload_base"] = b
-    log_tg(f"[stock_base_callback] Set stock_upload_base to: {b}")
-    await q.answer(f"Base set: {b}")
-    await q.edit_message_text(
-        f"✅ Upload base: <b>{html.escape(b)}</b>\n\n"
-        "Bulk (Telegram splits long paste — use batch mode):\n"
-        "<code>/stock &lt;price&gt;</code> → paste lines → <code>/done</code>\n\n"
-        "One message:\n"
-        f"<code>/stock {html.escape(b)} &lt;price&gt; &lt;bulk&gt;</code>",
-        parse_mode="HTML",
-    )
+    try:
+        q = update.callback_query
+        if not q or not q.from_user:
+            log_tg(f"[stock_base_callback] Missing callback_query or from_user")
+            return
+        if not _is_staff(q.from_user.id):
+            log_tg(f"[stock_base_callback] User {q.from_user.id} not staff")
+            await q.answer("Not allowed", show_alert=True)
+            return
+        data = (q.data or "").strip()
+        log_tg(f"[stock_base_callback] Received data: {data}")
+        if not data.startswith("stockbase:"):
+            log_tg(f"[stock_base_callback] Data doesn't start with 'stockbase:': {data}")
+            return
+        b = data.split(":", 1)[1].strip().upper()
+        log_tg(f"[stock_base_callback] Extracted base: {b}")
+        with state_lock:
+            ok = b in all_known_stock_bases_unlocked()
+        if not ok:
+            log_tg(f"[stock_base_callback] Unknown base: {b}")
+            await q.answer("Unknown base", show_alert=True)
+            return
+        context.user_data["stock_upload_base"] = b
+        log_tg(f"[stock_base_callback] Set stock_upload_base to: {b}")
+        await q.answer(f"Base set: {b}")
+        log_tg(f"[stock_base_callback] Answered callback query")
+        await q.edit_message_text(
+            f"✅ Upload base: <b>{html.escape(b)}</b>\n\n"
+            "Bulk (Telegram splits long paste — use batch mode):\n"
+            "<code>/stock &lt;price&gt;</code> → paste lines → <code>/done</code>\n\n"
+            "One message:\n"
+            f"<code>/stock {html.escape(b)} &lt;price&gt; &lt;bulk&gt;</code>",
+            parse_mode="HTML",
+        )
+        log_tg(f"[stock_base_callback] Edited message successfully")
+    except Exception as e:
+        log_tg(f"[stock_base_callback] Error: {e}", exc_info=True)
+        import traceback
+        traceback.print_exc()
 
 
 async def tg_stockbase(update, context) -> None:
