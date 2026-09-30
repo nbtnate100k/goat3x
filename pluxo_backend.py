@@ -4135,6 +4135,14 @@ async def tg_users(update, context) -> None:
     )
 
 
+async def tg_debug_all_callbacks(update, context) -> None:
+    """Catch-all handler to debug all callback queries."""
+    q = update.callback_query
+    if q:
+        log_tg(f"[DEBUG] Callback received: data='{q.data}' from user {q.from_user.id if q.from_user else 'unknown'}")
+    return
+
+
 async def tg_stock_base_callback(update, context) -> None:
     try:
         q = update.callback_query
@@ -5728,6 +5736,8 @@ def run_telegram_bot() -> None:
         .build()
     )
     application.add_error_handler(on_error)
+    # Debug handler - must come AFTER specific handlers so they get priority
+    # Add debug handler LAST to catch everything
     application.add_handler(
         CallbackQueryHandler(tg_stock_base_callback, pattern=r"^stockbase:([A-Za-z0-9_]+)$")
     )
@@ -5735,6 +5745,10 @@ def run_telegram_bot() -> None:
         CallbackQueryHandler(
             tg_topup_callback, pattern=r"^(tua|tur):[a-f0-9]{16}(?::.{1,64})?$"
         )
+    )
+    # Debug handler to log all callbacks with no pattern (lowest priority)
+    application.add_handler(
+        CallbackQueryHandler(tg_debug_all_callbacks)
     )
     application.add_handler(CommandHandler("start", tg_start))
     application.add_handler(CommandHandler("help", tg_help))
