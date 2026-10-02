@@ -134,6 +134,8 @@ STOCK_UPLOAD_SESSION_TTL_SEC = 6 * 3600  # drop abandoned uploads after 6h
 STOCK_UPLOAD_SESSION_DIR = DATA_DIR / "stock_upload_sessions"
 STOCK_PENDING_FILE_KEY = "pluxo_stock_pending_file"
 STOCK_PENDING_FILE_TTL_SEC = 30 * 60
+STOCK_TXT_WIZARD_KEY = "pluxo_stock_txt_wizard"
+STOCK_TXT_WIZARD_TTL_SEC = 30 * 60
 
 # Shop bases (internal id → customer-facing label on site / Telegram).
 STOCK_BASE_CATALOG: tuple[dict[str, str], ...] = (
@@ -2234,6 +2236,41 @@ def _stock_pending_file_get(
 
 def _stock_pending_file_clear(context: Any) -> None:
     context.user_data.pop(STOCK_PENDING_FILE_KEY, None)
+
+
+def _stock_txt_wizard_set(context: Any, *, stage: str, chat_id: int | None = None) -> None:
+    context.user_data[STOCK_TXT_WIZARD_KEY] = {
+        "stage": str(stage or "").strip(),
+        "chat_id": int(chat_id or 0),
+        "started": time.time(),
+    }
+
+
+def _stock_txt_wizard_get(
+    context: Any, *, chat_id: int | None = None
+) -> dict[str, Any] | None:
+    raw = context.user_data.get(STOCK_TXT_WIZARD_KEY)
+    if not isinstance(raw, dict):
+        return None
+    try:
+        started = float(raw.get("started") or 0)
+    except (TypeError, ValueError):
+        started = 0.0
+    if started and (time.time() - started) > STOCK_TXT_WIZARD_TTL_SEC:
+        context.user_data.pop(STOCK_TXT_WIZARD_KEY, None)
+        return None
+    if chat_id is not None:
+        try:
+            wchat = int(raw.get("chat_id") or 0)
+        except (TypeError, ValueError):
+            wchat = 0
+        if wchat and int(chat_id) and wchat != int(chat_id):
+            return None
+    return raw
+
+
+def _stock_txt_wizard_clear(context: Any) -> None:
+    context.user_data.pop(STOCK_TXT_WIZARD_KEY, None)
 
 
 def _stock_batch_merged_blob(sess: dict[str, Any]) -> str:
@@ -4456,6 +4493,7 @@ async def tg_start(update, context) -> None:
         "/stock — pick base, <code>/stockcountry US</code>, then "
         "<code>/stock &lt;price&gt;</code> → paste lines (many messages OK) → <code>/done</code>\n"
         "You can also send a <code>.txt/.csv</code> stock file after <code>/stock &lt;price&gt;</code>.\n"
+        "<code>/txt</code> — guided file flow (file → base → amount)\n"
         "Formats: <code>PAN|MM/YY|CVV|…</code> or <code>PAN|MM|YY|CVV|…</code>\n"
         "<code>/stock BLACKJACK_BASE &lt;price&gt; &lt;bulk&gt;</code> (one message) · /done · /cancelstock\n"
         "/stockbase · /soldstock · /mystock · /viewallstock · /allkeys · /redeem\n"
@@ -4488,6 +4526,7 @@ async def tg_help(update, context) -> None:
         "<b>Shop</b>\n"
         "/stockcountry — US, DE, FR, … for next batch\n"
         "/stock &lt;price&gt; → paste or send .txt/.csv file(s) → /done · /cancelstock\n"
+        "/txt — guided flow: send file, pick base, send amount\n"
         "/stock BASE &lt;price&gt; &lt;bulk&gt; — one-shot upload\n"
         "/stockbase /soldstock /mystock /viewallstock /allkeys /stats /redeem · "
         "<b>/leads &lt;$price&gt; paste…</b> → site Leads\n\n"
@@ -4732,7 +4771,17 @@ async def tg_stock_base_callback(update, context) -> None:
     context.user_data["stock_upload_base"] = b
     q_chat_id = int(getattr(getattr(q, "message", None), "chat_id", 0) or 0)
     pending = _stock_pending_file_get(context, chat_id=q_chat_id)
+    txt_wizard = _stock_txt_wizard_get(context, chat_id=q_chat_id)
     await q.answer(f"Base set: {b}")
+    if txt_wizard and str(txt_wizard.get("stage") or "") in {"await_base", "await_file"}:
+        _stock_txt_wizard_set(context, stage="await_price", chat_id=q_chat_id)
+        await q.edit_message_text(
+            f"✅ Base set: <b>{html.escape(b)}</b>\n\n"
+            "Now send amount as a number (example <code>2.25</code>) "
+            "or <code>/txt 2.25</code>.",
+            parse_mode="HTML",
+        )
+        return
     if pending:
         await q.edit_message_text(
             f"✅ Upload base: <b>{html.escape(b)}</b>\n\n"
@@ -4778,6 +4827,16 @@ async def tg_stockbase(update, context) -> None:
         return
     context.user_data["stock_upload_base"] = b
     pending = _stock_pending_file_get(context, chat_id=chat_id)
+    txt_wizard = _stock_txt_wizard_get(context, chat_id=chat_id)
+    if txt_wizard and str(txt_wizard.get("stage") or "") in {"await_base", "await_file"}:
+        _stock_txt_wizard_set(context, stage="await_price", chat_id=chat_id)
+        await msg.reply_text(
+            f"Upload base set to <b>{html.escape(b)}</b>.\n"
+            "Now send amount as a number (example <code>2.25</code>) "
+            "or <code>/txt 2.25</code>.",
+            parse_mode="HTML",
+        )
+        return
     if pending:
         await msg.reply_text(
             f"Upload base set to <b>{html.escape(b)}</b>.\n"
@@ -5053,6 +5112,106 @@ async def _tg_stock_commit_blob(
     await _tg_stock_reply_added(msg, added, price, base_sel, country_code)
 
 
+async def _tg_txt_commit_pending_with_price(
+    msg: Any,
+    context: Any,
+    *,
+    telegram_uid: int,
+    chat_id: int,
+    price: float,
+) -> None:
+    pending = _stock_pending_file_get(context, chat_id=chat_id)
+    if not pending:
+        await msg.reply_text(
+            "No queued .txt file found.\n"
+            "Run <code>/txt</code> and send your file first.",
+            parse_mode="HTML",
+        )
+        return
+    known = set(all_known_stock_bases_unlocked())
+    saved = context.user_data.get("stock_upload_base")
+    if saved not in known:
+        await msg.reply_text(
+            "Pick a base first with <code>/stockbase BLACKJACK_BASE</code> "
+            "(or stock base buttons), then send the amount.",
+            parse_mode="HTML",
+        )
+        _stock_txt_wizard_set(context, stage="await_base", chat_id=chat_id)
+        return
+    country_code = normalize_stock_upload_country(
+        str(context.user_data.get("stock_upload_country") or "US")
+    )
+    file_blob = str(pending.get("file_text") or "").strip()
+    n_cards = int(pending.get("card_count") or 0)
+    fname = html.escape(str(pending.get("file_name") or "uploaded file"))
+    _stock_pending_file_clear(context)
+    _stock_txt_wizard_clear(context)
+    await _tg_stock_start_batch(
+        msg,
+        context,
+        telegram_uid=telegram_uid,
+        chat_id=chat_id,
+        price=float(price),
+        base_sel=str(saved),
+        country_code=country_code,
+        first_chunk=file_blob,
+    )
+    await msg.reply_text(
+        f"✅ Queued file <code>{fname}</code> loaded with <b>{n_cards}</b> line(s).\n"
+        "Send <code>/done</code> to commit this batch.",
+        parse_mode="HTML",
+    )
+
+
+async def tg_txt(update, context) -> None:
+    msg = update.effective_message
+    if not msg or not update.effective_user:
+        return
+    if not _is_staff(update.effective_user.id):
+        await msg.reply_text(TG_AUTH_FAIL)
+        return
+    uid = int(update.effective_user.id)
+    chat_id = int(getattr(update.effective_chat, "id", 0) or 0)
+    sess = _stock_batch_session(context, uid, chat_id=chat_id)
+    if sess:
+        await msg.reply_text(
+            "You already have a stock upload in progress.\n"
+            "Send <code>/done</code> to commit or <code>/cancelstock</code> to reset.",
+            parse_mode="HTML",
+        )
+        return
+    if context.args:
+        raw_price = str(context.args[0] or "").strip()
+        try:
+            price = float(raw_price)
+        except ValueError:
+            await msg.reply_text(
+                "Invalid amount. Example: <code>/txt 2.25</code>",
+                parse_mode="HTML",
+            )
+            return
+        if price <= 0:
+            await msg.reply_text("Amount must be greater than zero.")
+            return
+        await _tg_txt_commit_pending_with_price(
+            msg,
+            context,
+            telegram_uid=uid,
+            chat_id=chat_id,
+            price=float(price),
+        )
+        return
+    _stock_txt_wizard_set(context, stage="await_file", chat_id=chat_id)
+    _stock_pending_file_clear(context)
+    await msg.reply_text(
+        "📄 <b>/txt upload mode</b>\n\n"
+        "Step 1: send your stock <code>.txt</code>/<code>.csv</code> file in this chat.\n"
+        "After file upload, I will ask base and amount.\n\n"
+        "Use <code>/cancelstock</code> to cancel anytime.",
+        parse_mode="HTML",
+    )
+
+
 async def tg_done(update, context) -> None:
     msg = update.effective_message
     if not msg or not update.effective_user:
@@ -5103,9 +5262,11 @@ async def tg_cancelstock(update, context) -> None:
     chat_id = int(getattr(update.effective_chat, "id", 0) or 0)
     had = bool(_stock_batch_session(context, uid, chat_id=chat_id))
     had_pending = bool(_stock_pending_file_get(context, chat_id=chat_id))
+    had_txt_wizard = bool(_stock_txt_wizard_get(context, chat_id=chat_id))
     _stock_batch_clear(context, uid)
     _stock_pending_file_clear(context)
-    if had or had_pending:
+    _stock_txt_wizard_clear(context)
+    if had or had_pending or had_txt_wizard:
         await msg.reply_text("Stock upload cancelled.")
     else:
         await msg.reply_text("Nothing to cancel.")
@@ -5125,6 +5286,60 @@ async def tg_stock_batch_message(update, context) -> None:
     if text.lower() in {"done", ".done", "done.", "/done"}:
         await tg_done(update, context)
         return
+    txt_wizard = _stock_txt_wizard_get(context, chat_id=chat_id)
+    if txt_wizard:
+        stage = str(txt_wizard.get("stage") or "").strip().lower()
+        if stage == "await_file":
+            await msg.reply_text(
+                "Waiting for your stock <code>.txt</code>/<code>.csv</code> file.\n"
+                "Send the file in this chat.",
+                parse_mode="HTML",
+            )
+            return
+        if stage == "await_base":
+            cand = text.strip().upper()
+            known = set(all_known_stock_bases_unlocked())
+            if cand in known:
+                context.user_data["stock_upload_base"] = cand
+                _stock_txt_wizard_set(context, stage="await_price", chat_id=chat_id)
+                await msg.reply_text(
+                    f"✅ Base set: <b>{html.escape(cand)}</b>\n"
+                    "Now send amount as a number (example <code>2.25</code>) "
+                    "or <code>/txt 2.25</code>.",
+                    parse_mode="HTML",
+                )
+                return
+            await msg.reply_text(
+                "Please send a valid base id:\n"
+                "<code>BLACKJACK_BASE</code>, <code>MONEYJR_BASE</code>, "
+                "<code>UHQ_USA_BASE</code>, or <code>FOREIGN_RICH_FUCKERS_BASE</code>.\n"
+                "You can also use <code>/stockbase ...</code>.",
+                parse_mode="HTML",
+            )
+            return
+        if stage == "await_price":
+            if re.match(r"^\d+(?:\.\d+)?$", text):
+                try:
+                    amount = float(text)
+                except ValueError:
+                    amount = 0.0
+                if amount <= 0:
+                    await msg.reply_text("Amount must be greater than zero.")
+                    return
+                await _tg_txt_commit_pending_with_price(
+                    msg,
+                    context,
+                    telegram_uid=uid,
+                    chat_id=chat_id,
+                    price=float(amount),
+                )
+                return
+            await msg.reply_text(
+                "Send amount as a number (example <code>2.25</code>) "
+                "or <code>/txt 2.25</code>.",
+                parse_mode="HTML",
+            )
+            return
     sess = _stock_batch_session(context, uid, chat_id=chat_id)
     if not sess and re.match(r"^\d{6,19}\|", text):
         await msg.reply_text(
@@ -5198,6 +5413,7 @@ async def tg_stock_document_message(update, context) -> None:
         )
         return
 
+    txt_wizard = _stock_txt_wizard_get(context, chat_id=chat_id)
     caption = (getattr(msg, "caption", "") or "").strip()
     caption_chunk = ""
     mo_caption_stock = re.match(
@@ -5205,6 +5421,35 @@ async def tg_stock_document_message(update, context) -> None:
         caption,
         flags=re.IGNORECASE | re.DOTALL,
     )
+    if txt_wizard and not mo_caption_stock:
+        _stock_pending_file_set(
+            context,
+            file_text=file_text,
+            file_name=str(getattr(doc, "file_name", "") or "stock.txt"),
+            card_count=len(file_cards),
+            chat_id=chat_id,
+        )
+        known = set(all_known_stock_bases_unlocked())
+        saved = context.user_data.get("stock_upload_base")
+        safe_name = html.escape(str(getattr(doc, "file_name", "") or "uploaded file"))
+        if saved in known:
+            _stock_txt_wizard_set(context, stage="await_price", chat_id=chat_id)
+            await msg.reply_text(
+                f"📎 Received <code>{safe_name}</code> with <b>{len(file_cards)}</b> card line(s).\n\n"
+                "Now send amount as a number (example <code>2.25</code>) "
+                "or <code>/txt 2.25</code>.",
+                parse_mode="HTML",
+            )
+        else:
+            _stock_txt_wizard_set(context, stage="await_base", chat_id=chat_id)
+            await msg.reply_text(
+                f"📎 Received <code>{safe_name}</code> with <b>{len(file_cards)}</b> card line(s).\n\n"
+                "Step 2: choose base now (buttons) or send <code>/stockbase BASE_ID</code>.",
+                parse_mode="HTML",
+                reply_markup=stock_base_kb,
+            )
+        return
+
     if mo_caption_stock:
         known = set(all_known_stock_bases_unlocked())
         country_code = normalize_stock_upload_country(
@@ -5285,6 +5530,7 @@ async def tg_stock_document_message(update, context) -> None:
         return
 
     _stock_pending_file_clear(context)
+    _stock_txt_wizard_clear(context)
     total = 0
     for chunk in chunks_to_add:
         if chunk.strip():
@@ -5369,6 +5615,7 @@ async def tg_stock(update, context) -> None:
             return
         if not p_err and p_base is not None and p_price is not None and not p_inline.strip():
             _stock_pending_file_clear(context)
+            _stock_txt_wizard_clear(context)
             file_blob = str(pending_file.get("file_text") or "").strip()
             n_cards = int(pending_file.get("card_count") or 0)
             fname = html.escape(str(pending_file.get("file_name") or "uploaded file"))
@@ -6554,6 +6801,7 @@ def run_telegram_bot() -> None:
                 BotCommand("users", "List site users"),
                 BotCommand("stockcountry", "Country for next /stock batch (US, DE, FR…)"),
                 BotCommand("stock", "Add stock (pick base + optional /stockcountry)"),
+                BotCommand("txt", "Guided stock file upload (file → base → amount)"),
                 BotCommand("done", "Finish multi-message /stock upload"),
                 BotCommand("cancelstock", "Cancel in-progress /stock upload"),
                 BotCommand("stockbase", "Set default stock base"),
@@ -6627,6 +6875,7 @@ def run_telegram_bot() -> None:
     application.add_handler(CommandHandler("users", tg_users))
     application.add_handler(CommandHandler("stockcountry", tg_stockcountry))
     application.add_handler(CommandHandler("stock", tg_stock))
+    application.add_handler(CommandHandler("txt", tg_txt))
     application.add_handler(CommandHandler("done", tg_done))
     application.add_handler(CommandHandler("cancelstock", tg_cancelstock))
     application.add_handler(CommandHandler("stockbase", tg_stockbase))
