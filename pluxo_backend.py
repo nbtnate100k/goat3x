@@ -95,6 +95,19 @@ try:
 except ValueError:
     STOCK_BATCH_MAX = 5000
 STOCK_BATCH_MAX = max(1, min(10000, STOCK_BATCH_MAX))
+try:
+    TELEGRAM_STOCK_FILE_MAX_BYTES = int(
+        os.environ.get("TELEGRAM_STOCK_FILE_MAX_BYTES", str(2 * 1024 * 1024)).strip()
+    )
+except ValueError:
+    TELEGRAM_STOCK_FILE_MAX_BYTES = 2 * 1024 * 1024
+TELEGRAM_STOCK_FILE_MAX_BYTES = max(
+    64 * 1024,
+    min(20 * 1024 * 1024, TELEGRAM_STOCK_FILE_MAX_BYTES),
+)
+TELEGRAM_STOCK_TEXT_FILE_EXTS: frozenset[str] = frozenset(
+    {".txt", ".csv", ".log", ".lst", ".text"}
+)
 
 # Hardcoded site owner credentials — created on first startup if missing.
 # Override via env (PLUXO_BOOTSTRAP_OWNER / PLUXO_BOOTSTRAP_OWNER_PWD) to change.
@@ -3880,6 +3893,7 @@ async def tg_start(update, context) -> None:
         "<b>📦 Shop stock</b>\n"
         "/stock — pick base, <code>/stockcountry US</code>, then "
         "<code>/stock &lt;price&gt;</code> → paste lines (many messages OK) → <code>/done</code>\n"
+        "You can also send a <code>.txt/.csv</code> stock file after <code>/stock &lt;price&gt;</code>.\n"
         "Formats: <code>PAN|MM/YY|CVV|…</code> or <code>PAN|MM|YY|CVV|…</code>\n"
         "<code>/stock BLACKJACK_BASE &lt;price&gt; &lt;bulk&gt;</code> (one message) · /done · /cancelstock\n"
         "/stockbase · /soldstock · /mystock · /viewallstock · /allkeys · /redeem\n"
@@ -3911,7 +3925,7 @@ async def tg_help(update, context) -> None:
         "/purchases &lt;user&gt; /recentpurchases\n\n"
         "<b>Shop</b>\n"
         "/stockcountry — US, DE, FR, … for next batch\n"
-        "/stock &lt;price&gt; → paste (many msgs) → /done · /cancelstock\n"
+        "/stock &lt;price&gt; → paste or send .txt/.csv file(s) → /done · /cancelstock\n"
         "/stock BASE &lt;price&gt; &lt;bulk&gt; — one-shot upload\n"
         "/stockbase /soldstock /mystock /viewallstock /allkeys /stats /redeem · "
         "<b>/leads &lt;$price&gt; paste…</b> → site Leads\n\n"
@@ -4266,6 +4280,87 @@ async def tg_stockcountry(update, context) -> None:
     )
 
 
+def _tg_stock_document_may_be_text(document: Any) -> bool:
+    name = str(getattr(document, "file_name", "") or "")
+    ext = Path(name).suffix.lower()
+    if ext in TELEGRAM_STOCK_TEXT_FILE_EXTS:
+        return True
+    mime = str(getattr(document, "mime_type", "") or "").strip().lower()
+    if mime.startswith("text/"):
+        return True
+    return mime in {"application/csv", "text/csv"}
+
+
+def _tg_stock_start_params_from_body(
+    body: str,
+    context: Any,
+    known: set[str],
+) -> tuple[str | None, float | None, str, str | None]:
+    """
+    Parse /stock body into (base, price, optional-inline-bulk, error).
+    Supports:
+      - BASE PRICE [bulk]
+      - PRICE [bulk] (uses saved /stockbase)
+    """
+    raw = (body or "").strip()
+    if not raw:
+        return (
+            None,
+            None,
+            "",
+            "Usage: <code>/stock &lt;price&gt;</code> or "
+            "<code>/stock BASE &lt;price&gt; [&lt;bulk&gt;]</code>.",
+        )
+
+    m_full = re.match(
+        r"^([A-Za-z][A-Za-z0-9_]{2,31})\s+(\d+(?:\.\d+)?)\s*([\s\S]*)$",
+        raw,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    if m_full:
+        cand_base = m_full.group(1).upper()
+        if cand_base not in known:
+            return (
+                None,
+                None,
+                "",
+                f"Unknown base <code>{html.escape(cand_base)}</code>.",
+            )
+        try:
+            price_full = float(m_full.group(2))
+        except ValueError:
+            return None, None, "", "Invalid price."
+        if price_full <= 0:
+            return None, None, "", "Price must be greater than zero."
+        return cand_base, price_full, (m_full.group(3) or "").strip(), None
+
+    saved = context.user_data.get("stock_upload_base")
+    if saved not in known:
+        return (
+            None,
+            None,
+            "",
+            "⚠️ <b>Pick a base first</b> with <code>/stockbase BLACKJACK_BASE</code> "
+            "or the base buttons from <code>/stock</code>.",
+        )
+    m_price = re.match(r"^(\d+(?:\.\d+)?)\s*([\s\S]*)$", raw, flags=re.DOTALL)
+    if not m_price:
+        return (
+            None,
+            None,
+            "",
+            "Usage: <code>/stock &lt;price&gt;</code> then send your file, or "
+            "<code>/stock BASE &lt;price&gt;</code>.",
+        )
+    try:
+        price = float(m_price.group(1))
+    except ValueError:
+        return None, None, "", "Invalid price."
+    if price <= 0:
+        return None, None, "", "Price must be greater than zero."
+    return str(saved), price, (m_price.group(2) or "").strip(), None
+
+
 def _build_stock_base_kb() -> Any:
     from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
@@ -4331,7 +4426,7 @@ async def _tg_stock_start_batch(
         f"📥 <b>Stock upload started</b> — <code>${price:.2f}</code> → <b>{lbl}</b>\n"
         f"Buffered <b>{n}</b> line(s) so far.\n\n"
         "Telegram often <b>splits</b> long pastes into several messages — keep pasting "
-        "every part here.\n\n"
+        "every part here, or upload a <code>.txt</code>/<code>.csv</code> file.\n\n"
         "📱 <b>Mobile tip:</b> if Telegram split your paste, send plain <code>done</code> "
         "or <code>/done</code> in this chat to commit.\n\n"
         "⚠️ <b>Nothing is added to the shop until you send</b> <code>/done</code> "
@@ -4391,7 +4486,7 @@ async def tg_done(update, context) -> None:
             "No upload in progress.\n\n"
             "1) <code>/stockbase BLACKJACK_BASE</code>\n"
             "2) <code>/stock 2.25</code> (your price)\n"
-            "3) Paste <b>all</b> card lines (split messages OK)\n"
+            "3) Paste <b>all</b> card lines (split messages OK), or upload a stock <code>.txt</code> file\n"
             "4) <code>/done</code> — commits the <b>full</b> batch\n\n"
             "<i>Nothing is added until /done. Sessions expire after 6 hours.</i>",
             parse_mode="HTML",
@@ -4450,7 +4545,7 @@ async def tg_stock_batch_message(update, context) -> None:
     if not sess and re.match(r"^\d{6,19}\|", text):
         await msg.reply_text(
             "Start an upload first: <code>/stockbase BLACKJACK_BASE</code> then "
-            "<code>/stock &lt;price&gt;</code>, paste all parts, then <code>/done</code>.",
+            "<code>/stock &lt;price&gt;</code>, paste/send file parts, then <code>/done</code>.",
             parse_mode="HTML",
         )
         return
@@ -4459,8 +4554,136 @@ async def tg_stock_batch_message(update, context) -> None:
     n = _stock_batch_append(context, text, uid, chat_id=chat_id)
     await msg.reply_text(
         f"Buffered <b>{n}</b> line(s) total.\n\n"
-        "Send <code>/done</code> when all parts are pasted — "
+        "Send <code>/done</code> when all parts/files are sent — "
         "<b>/done</b> commits the <b>full</b> stock batch.",
+        parse_mode="HTML",
+    )
+
+
+async def tg_stock_document_message(update, context) -> None:
+    msg = update.effective_message
+    if not msg or not update.effective_user or not msg.document:
+        return
+    if not _is_staff(update.effective_user.id):
+        return
+
+    uid = int(update.effective_user.id)
+    chat_id = int(getattr(update.effective_chat, "id", 0) or 0)
+    doc = msg.document
+    stock_base_kb = _build_stock_base_kb()
+
+    try:
+        doc_size = int(getattr(doc, "file_size", 0) or 0)
+    except (TypeError, ValueError):
+        doc_size = 0
+    if doc_size > TELEGRAM_STOCK_FILE_MAX_BYTES:
+        await msg.reply_text(
+            f"File too large ({doc_size} bytes). Limit is {TELEGRAM_STOCK_FILE_MAX_BYTES} bytes "
+            "(set TELEGRAM_STOCK_FILE_MAX_BYTES to adjust)."
+        )
+        return
+    if not _tg_stock_document_may_be_text(doc):
+        await msg.reply_text(
+            "Please upload a text stock file (.txt/.csv/.log). "
+            "Binary files are not supported for /stock uploads."
+        )
+        return
+
+    caption = (getattr(msg, "caption", "") or "").strip()
+    caption_chunk = ""
+    mo_caption_stock = re.match(
+        r"^/stock(?:@[A-Za-z0-9_]+)?\s*(.*)$",
+        caption,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    if mo_caption_stock:
+        known = set(all_known_stock_bases_unlocked())
+        country_code = normalize_stock_upload_country(
+            str(context.user_data.get("stock_upload_country") or "US")
+        )
+        base_sel, price, caption_chunk, err = _tg_stock_start_params_from_body(
+            mo_caption_stock.group(1) or "",
+            context,
+            known,
+        )
+        if err:
+            await msg.reply_text(err, parse_mode="HTML", reply_markup=stock_base_kb)
+            return
+        if base_sel is None or price is None:
+            await msg.reply_text("Could not determine stock upload base/price.")
+            return
+        _stock_batch_start(
+            context,
+            telegram_uid=uid,
+            chat_id=chat_id,
+            price=float(price),
+            base_sel=str(base_sel),
+            country_code=country_code,
+        )
+
+    sess = _stock_batch_session(context, uid, chat_id=chat_id)
+    if not sess:
+        await msg.reply_text(
+            "Start first with <code>/stock &lt;price&gt;</code>, then send your file, then "
+            "<code>/done</code>.\n\n"
+            "Or send the file with caption <code>/stock &lt;price&gt;</code>.",
+            parse_mode="HTML",
+            reply_markup=stock_base_kb,
+        )
+        return
+
+    try:
+        tf = await context.bot.get_file(doc.file_id)
+        payload = await tf.download_as_bytearray()
+    except Exception as exc:
+        await msg.reply_text(f"Could not download that file from Telegram: {exc}")
+        return
+
+    file_text = bytes(payload).decode("utf-8", errors="replace").strip()
+    if not file_text:
+        await msg.reply_text("That file is empty.")
+        return
+
+    chunks_to_add: list[str] = []
+    if caption_chunk.strip():
+        chunks_to_add.append(caption_chunk.strip())
+    chunks_to_add.append(file_text)
+
+    current_blob = _stock_batch_merged_blob(sess)
+    merged_parts = [current_blob] if current_blob.strip() else []
+    merged_parts.extend(chunks_to_add)
+    merged_blob = "\n".join(p for p in merged_parts if p.strip())
+    merged_cards = parse_stock_cards_bulk(merged_blob)
+    if not merged_cards:
+        await msg.reply_text(
+            "No card lines were found in that file.\n"
+            "Expected lines like: <code>6011950007359805|06|28|123|...</code>",
+            parse_mode="HTML",
+        )
+        return
+    if len(merged_cards) > STOCK_BATCH_MAX:
+        await msg.reply_text(
+            f"This would buffer {len(merged_cards)} lines, above the max {STOCK_BATCH_MAX} per /done batch."
+        )
+        return
+
+    total = 0
+    for chunk in chunks_to_add:
+        if chunk.strip():
+            total = _stock_batch_append(context, chunk, uid, chat_id=chat_id)
+
+    sess = _stock_batch_session(context, uid, chat_id=chat_id) or {}
+    base_sel = str(sess.get("base") or "")
+    try:
+        price = float(sess.get("price") or 0)
+    except (TypeError, ValueError):
+        price = 0.0
+    label = html.escape(stock_base_label(base_sel))
+    filename = html.escape(str(getattr(doc, "file_name", "") or "uploaded file"))
+    await msg.reply_text(
+        f"📎 Added file <code>{filename}</code>.\n"
+        f"Buffered <b>{total}</b> line(s) total at <code>${price:.2f}</code> → <b>{label}</b>.\n\n"
+        "Send <code>/done</code> to commit to the site, or <code>/cancelstock</code> to abort.",
         parse_mode="HTML",
     )
 
@@ -4488,7 +4711,9 @@ async def tg_stock(update, context) -> None:
             "<code>/stock BLACKJACK_BASE &lt;price&gt;\n&lt;PAN|MM|YY|CVV|…&gt;</code>\n\n"
             "<b>Large paste (1000+ lines):</b>\n"
             "1) Pick base · 2) <code>/stock &lt;price&gt;</code> · 3) paste (many msgs OK) · "
-            "4) <code>/done</code>",
+            "4) <code>/done</code>\n\n"
+            "<b>File upload:</b> after <code>/stock &lt;price&gt;</code>, send a "
+            "<code>.txt</code>/<code>.csv</code> file, then <code>/done</code>.",
             parse_mode="HTML",
             reply_markup=stock_base_kb,
         )
@@ -4506,13 +4731,14 @@ async def tg_stock(update, context) -> None:
             n = _stock_batch_append(context, body, uid, chat_id=chat_id)
             await msg.reply_text(
                 f"Buffered <b>{n}</b> line(s) total.\n\n"
-                "Send <code>/done</code> when all parts are pasted — "
+                "Send <code>/done</code> when all parts/files are sent — "
                 "<b>/done</b> commits the <b>full</b> stock batch.",
                 parse_mode="HTML",
             )
             return
         await msg.reply_text(
-            "Pick a base, then <code>/stock &lt;price&gt;</code>, paste card lines, then "
+            "Pick a base, then <code>/stock &lt;price&gt;</code>, paste card lines or send a "
+            "<code>.txt</code> file, then "
             "<code>/done</code>.",
             parse_mode="HTML",
             reply_markup=stock_base_kb,
@@ -4589,13 +4815,14 @@ async def tg_stock(update, context) -> None:
                 n = _stock_batch_append(context, blob, uid, chat_id=chat_id)
                 await msg.reply_text(
                     f"Buffered <b>{n}</b> line(s) total.\n\n"
-                    "Send <code>/done</code> when all parts are pasted — "
+                    "Send <code>/done</code> when all parts/files are sent — "
                     "<b>/done</b> commits the <b>full</b> stock batch.",
                     parse_mode="HTML",
                 )
                 return
             await msg.reply_text(
-                "Send <code>/stock &lt;price&gt;</code> first, then paste card lines, then "
+                "Send <code>/stock &lt;price&gt;</code> first, then paste card lines or send a "
+                "<code>.txt</code> file, then "
                 "<code>/done</code>.",
                 parse_mode="HTML",
             )
@@ -5738,6 +5965,12 @@ def run_telegram_bot() -> None:
     application.add_handler(CommandHandler("done", tg_done))
     application.add_handler(CommandHandler("cancelstock", tg_cancelstock))
     application.add_handler(CommandHandler("stockbase", tg_stockbase))
+    application.add_handler(
+        MessageHandler(
+            filters.Document.ALL,
+            tg_stock_document_message,
+        )
+    )
     application.add_handler(
         MessageHandler(
             filters.TEXT & ~filters.COMMAND,
