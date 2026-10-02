@@ -4135,54 +4135,34 @@ async def tg_users(update, context) -> None:
     )
 
 
-async def tg_debug_all_callbacks(update, context) -> None:
-    """Catch-all handler to debug all callback queries."""
-    q = update.callback_query
-    if q:
-        log_tg(f"[DEBUG] Callback received: data='{q.data}' from user {q.from_user.id if q.from_user else 'unknown'}")
-    return
-
-
 async def tg_stock_base_callback(update, context) -> None:
-    try:
-        q = update.callback_query
-        if not q or not q.from_user:
-            log_tg(f"[stock_base_callback] Missing callback_query or from_user")
-            return
-        if not _is_staff(q.from_user.id):
-            log_tg(f"[stock_base_callback] User {q.from_user.id} not staff")
-            await q.answer("Not allowed", show_alert=True)
-            return
-        data = (q.data or "").strip()
-        log_tg(f"[stock_base_callback] Received data: {data}")
-        if not data.startswith("stockbase:"):
-            log_tg(f"[stock_base_callback] Data doesn't start with 'stockbase:': {data}")
-            return
-        b = data.split(":", 1)[1].strip().upper()
-        log_tg(f"[stock_base_callback] Extracted base: {b}")
-        with state_lock:
-            ok = b in all_known_stock_bases_unlocked()
-        if not ok:
-            log_tg(f"[stock_base_callback] Unknown base: {b}")
-            await q.answer("Unknown base", show_alert=True)
-            return
-        context.user_data["stock_upload_base"] = b
-        log_tg(f"[stock_base_callback] Set stock_upload_base to: {b}")
-        await q.answer(f"Base set: {b}")
-        log_tg(f"[stock_base_callback] Answered callback query")
-        await q.edit_message_text(
-            f"✅ Upload base: <b>{html.escape(b)}</b>\n\n"
-            "Bulk (Telegram splits long paste — use batch mode):\n"
-            "<code>/stock &lt;price&gt;</code> → paste lines → <code>/done</code>\n\n"
-            "One message:\n"
-            f"<code>/stock {html.escape(b)} &lt;price&gt; &lt;bulk&gt;</code>",
-            parse_mode="HTML",
-        )
-        log_tg(f"[stock_base_callback] Edited message successfully")
-    except Exception as e:
-        log_tg(f"[stock_base_callback] Error: {e}", exc_info=True)
-        import traceback
-        traceback.print_exc()
+    q = update.callback_query
+    if not q or not q.from_user:
+        return
+    if not _is_staff(q.from_user.id):
+        await q.answer("Not allowed", show_alert=True)
+        return
+
+    data = (q.data or "").strip()
+    if not data.startswith("stockbase:"):
+        return
+    b = data.split(":", 1)[1].strip().upper()
+    with state_lock:
+        ok = b in all_known_stock_bases_unlocked()
+    if not ok:
+        await q.answer("Unknown base", show_alert=True)
+        return
+
+    context.user_data["stock_upload_base"] = b
+    await q.answer(f"Base set: {b}")
+    await q.edit_message_text(
+        f"✅ Upload base: <b>{html.escape(b)}</b>\n\n"
+        "Bulk (Telegram splits long paste — use batch mode):\n"
+        "<code>/stock &lt;price&gt;</code> → paste lines → <code>/done</code>\n\n"
+        "One message:\n"
+        f"<code>/stock {html.escape(b)} &lt;price&gt; &lt;bulk&gt;</code>",
+        parse_mode="HTML",
+    )
 
 
 async def tg_stockbase(update, context) -> None:
@@ -5736,8 +5716,6 @@ def run_telegram_bot() -> None:
         .build()
     )
     application.add_error_handler(on_error)
-    # Debug handler - must come AFTER specific handlers so they get priority
-    # Add debug handler LAST to catch everything
     application.add_handler(
         CallbackQueryHandler(tg_stock_base_callback, pattern=r"^stockbase:([A-Za-z0-9_]+)$")
     )
@@ -5745,10 +5723,6 @@ def run_telegram_bot() -> None:
         CallbackQueryHandler(
             tg_topup_callback, pattern=r"^(tua|tur):[a-f0-9]{16}(?::.{1,64})?$"
         )
-    )
-    # Debug handler to log all callbacks with no pattern (lowest priority)
-    application.add_handler(
-        CallbackQueryHandler(tg_debug_all_callbacks)
     )
     application.add_handler(CommandHandler("start", tg_start))
     application.add_handler(CommandHandler("help", tg_help))
