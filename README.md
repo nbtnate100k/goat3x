@@ -31,3 +31,7 @@ python pluxo_backend.py
 - Backup includes username, password hash, and balance fields.
 - A background sender pushes `users_backup_latest.txt` to owner/admin Telegram chats every hour (`PLUXO_BACKUP_PUSH_INTERVAL_SECONDS`).
 - On successful checkout, the web client auto-downloads a `.txt` receipt with purchased full lines so buyers can keep their own copy if the shop resets.
+- Restore endpoint (admin protected): `POST /api/admin/backup/restore-users`
+  - accepts multipart `file` (`.txt` / `.json`) or JSON `{ "users": [...] }`
+  - optional `replace_all_users=true` to wipe+restore after a reset
+- CLI helper: `python restore_users_backup.py --file data/backups/users_backup_latest.txt --webhook-secret <secret>`

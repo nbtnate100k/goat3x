@@ -1275,6 +1275,140 @@ def _write_user_backup_files() -> dict[str, Any]:
     }
 
 
+def _coerce_backup_float(v: Any, default: float = 0.0) -> float:
+    try:
+        return round(float(v), 2)
+    except (TypeError, ValueError):
+        return default
+
+
+def _coerce_backup_bool(v: Any) -> bool:
+    if isinstance(v, bool):
+        return v
+    if isinstance(v, (int, float)):
+        return v != 0
+    return str(v or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _backup_row_from_raw(raw: dict[str, Any]) -> dict[str, Any] | None:
+    if not isinstance(raw, dict):
+        return None
+    username = norm_user(str(raw.get("username") or ""))
+    if not USER_RE_VALID.fullmatch(username):
+        return None
+    return {
+        "username": username,
+        "password_hash": str(
+            raw.get("password_hash")
+            or raw.get("pwd_hash")
+            or raw.get("passwordHash")
+            or ""
+        ).strip(),
+        "balance": _coerce_backup_float(raw.get("balance", 0), 0.0),
+        "total_recharge": _coerce_backup_float(
+            raw.get("total_recharge", raw.get("totalRecharge", 0)), 0.0
+        ),
+        "email": str(raw.get("email") or "").strip()[:200],
+    }
+
+
+def _parse_backup_rows_from_text_blob(blob: str) -> list[dict[str, Any]]:
+    lines = blob.replace("\r\n", "\n").split("\n")
+    rows: list[dict[str, Any]] = []
+    header_seen = False
+    for line in lines:
+        s = line.strip()
+        if not s:
+            continue
+        if not header_seen and s.lower().startswith("username\tpassword_hash\tbalance"):
+            header_seen = True
+            continue
+        if not header_seen:
+            continue
+        parts = line.split("\t")
+        if len(parts) < 4:
+            continue
+        cand = {
+            "username": parts[0].strip(),
+            "password_hash": parts[1].strip(),
+            "balance": parts[2].strip(),
+            "total_recharge": parts[3].strip(),
+            "email": parts[4].strip() if len(parts) >= 5 else "",
+        }
+        row = _backup_row_from_raw(cand)
+        if row is not None:
+            rows.append(row)
+    return rows
+
+
+def _parse_backup_rows_from_payload(payload: Any) -> list[dict[str, Any]]:
+    if isinstance(payload, dict):
+        users = payload.get("users")
+        if isinstance(users, list):
+            out: list[dict[str, Any]] = []
+            for raw in users:
+                row = _backup_row_from_raw(raw)
+                if row is not None:
+                    out.append(row)
+            return out
+        txt = payload.get("backup_text")
+        if isinstance(txt, str) and txt.strip():
+            return _parse_backup_rows_from_text_blob(txt)
+        return []
+    if isinstance(payload, list):
+        out2: list[dict[str, Any]] = []
+        for raw in payload:
+            row = _backup_row_from_raw(raw)
+            if row is not None:
+                out2.append(row)
+        return out2
+    return []
+
+
+def _restore_users_from_rows_unlocked(
+    rows: list[dict[str, Any]],
+    *,
+    replace_all_users: bool = False,
+) -> dict[str, Any]:
+    users = state.setdefault("users", {})
+    if not isinstance(users, dict):
+        users = {}
+        state["users"] = users
+    if replace_all_users:
+        state["users"] = {}
+        users = state["users"]
+    created = 0
+    updated = 0
+    with_password = 0
+    for row in rows:
+        username = norm_user(str(row.get("username") or ""))
+        if not USER_RE_VALID.fullmatch(username):
+            continue
+        existed = username in users
+        rec = get_balance_record(username)
+        rec["balance"] = max(0.0, _coerce_backup_float(row.get("balance"), 0.0))
+        rec["totalRecharge"] = max(
+            0.0, _coerce_backup_float(row.get("total_recharge"), 0.0)
+        )
+        ph = str(row.get("password_hash") or "").strip()
+        if ph:
+            rec["pwd_hash"] = ph
+            with_password += 1
+        em = str(row.get("email") or "").strip()
+        if em:
+            rec["email"] = em[:200]
+        if existed:
+            updated += 1
+        else:
+            created += 1
+    return {
+        "created": created,
+        "updated": updated,
+        "with_password_hash": with_password,
+        "replace_all_users": bool(replace_all_users),
+    }
+
+
 def _push_user_backup_to_telegram(reason: str = "hourly") -> None:
     meta = _write_user_backup_files()
     if not TELEGRAM_BOT_TOKEN:
@@ -3093,6 +3227,127 @@ def api_admin_stock_document_import():
     if skipped_sold:
         out["skipped_already_sold"] = skipped_sold
     return jsonify(out)
+
+
+@app.post("/api/admin/backup/restore-users")
+def api_admin_backup_restore_users():
+    """
+    Restore users from backup JSON/TXT.
+
+    Accepted inputs:
+      - multipart/form-data with `file` (.json or .txt backup)
+      - JSON body with {"users":[...]} or {"backup_text":"..."}
+
+    Optional:
+      - replace_all_users=true  (DANGEROUS: clears current users before restore)
+      - send_telegram_backup=true (push fresh backup file to Telegram after restore)
+    """
+    require_secret_or_site_admin_web()
+
+    rows: list[dict[str, Any]] = []
+    replace_all_users = False
+    send_telegram_after = False
+    source = "none"
+
+    if "file" in request.files and request.files["file"] is not None:
+        up = request.files["file"]
+        raw_name = str(getattr(up, "filename", "") or "").strip().lower()
+        try:
+            blob = up.read().decode("utf-8", errors="replace")
+        except Exception:
+            return jsonify({"ok": False, "error": "Could not read uploaded file"}), 400
+        if raw_name.endswith(".json"):
+            try:
+                payload = json.loads(blob)
+            except json.JSONDecodeError:
+                return jsonify({"ok": False, "error": "Uploaded JSON backup is invalid"}), 400
+            rows = _parse_backup_rows_from_payload(payload)
+            source = "file_json"
+        else:
+            rows = _parse_backup_rows_from_text_blob(blob)
+            source = "file_text"
+            if not rows and blob.strip().startswith("{"):
+                try:
+                    payload2 = json.loads(blob)
+                except json.JSONDecodeError:
+                    payload2 = None
+                if payload2 is not None:
+                    rows = _parse_backup_rows_from_payload(payload2)
+                    source = "file_json_fallback"
+        repl_raw = (
+            request.form.get("replace_all_users")
+            or request.form.get("replace")
+            or ""
+        ).strip().lower()
+        replace_all_users = repl_raw in {"1", "true", "yes", "on"}
+        send_raw = (request.form.get("send_telegram_backup") or "").strip().lower()
+        send_telegram_after = send_raw in {"1", "true", "yes", "on"}
+    else:
+        payload3 = request.get_json(force=True, silent=True) or {}
+        rows = _parse_backup_rows_from_payload(payload3)
+        source = "json_body"
+        replace_all_users = _coerce_backup_bool(
+            payload3.get("replace_all_users", payload3.get("replace"))
+        )
+        send_telegram_after = _coerce_backup_bool(
+            payload3.get("send_telegram_backup")
+        )
+
+    if not rows:
+        return (
+            jsonify(
+                {
+                    "ok": False,
+                    "error": "No valid user rows found in backup input.",
+                    "hint": "Upload backup .txt/.json, or JSON { users: [...] }.",
+                }
+            ),
+            400,
+        )
+
+    with state_lock:
+        stats = _restore_users_from_rows_unlocked(
+            rows,
+            replace_all_users=replace_all_users,
+        )
+        stats["restored_rows"] = len(rows)
+        stats["total_users_after"] = len(state.get("users") or {})
+        _action_log_unlocked(
+            "admin backup restore users "
+            f"rows={len(rows)} created={stats.get('created')} "
+            f"updated={stats.get('updated')} replace={replace_all_users}",
+            uid=None,
+        )
+        save_state()
+
+    try:
+        backup_meta = _write_user_backup_files()
+    except Exception as exc:
+        backup_meta = {"error": f"backup write failed: {exc!r}"}
+
+    if send_telegram_after:
+        try:
+            _push_user_backup_to_telegram("post-restore")
+        except Exception as exc:
+            print(f"[backup] restore post-send failed: {exc!r}", flush=True)
+
+    return jsonify(
+        {
+            "ok": True,
+            "source": source,
+            "stats": stats,
+            "backup": backup_meta,
+            "telegram_sent": bool(send_telegram_after),
+        }
+    )
+
+
+@app.post("/api/admin/backup/send-now")
+def api_admin_backup_send_now():
+    """Force a fresh backup write + immediate Telegram push."""
+    require_secret_or_site_admin_web()
+    _push_user_backup_to_telegram("manual")
+    return jsonify({"ok": True})
 
 
 @app.get("/api/admin/accounts")
