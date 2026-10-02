@@ -151,13 +151,61 @@ DEFAULT_STOCK_BASE_ID = "BLACKJACK_BASE"
 # Older rows may still carry labels like "2026_US_Base"; sales roll up here for reporting.
 SOLD_STOCK_FALLBACK_BUCKET = "UNASSIGNED"
 
-# Legacy custom admin bases (deprecated — catalog bases only).
 ADMIN_STOCK_BASE_NAME_RE = re.compile(r"^[A-Z][A-Z0-9_]{2,31}$")
+
+
+def _normalize_custom_stock_bases_map(raw: Any) -> dict[str, str]:
+    out: dict[str, str] = {}
+    if isinstance(raw, dict):
+        for k, v in raw.items():
+            bid = str(k or "").strip().upper()
+            if not ADMIN_STOCK_BASE_NAME_RE.fullmatch(bid):
+                continue
+            if bid in VALID_STOCK_BASES:
+                continue
+            if isinstance(v, dict):
+                lbl = str(v.get("label") or bid).strip()
+            else:
+                lbl = str(v or bid).strip()
+            out[bid] = lbl or bid
+        return out
+    if isinstance(raw, list):
+        for row in raw:
+            if not isinstance(row, dict):
+                continue
+            bid = str(row.get("id") or "").strip().upper()
+            if not ADMIN_STOCK_BASE_NAME_RE.fullmatch(bid):
+                continue
+            if bid in VALID_STOCK_BASES:
+                continue
+            lbl = str(row.get("label") or bid).strip()
+            out[bid] = lbl or bid
+    return out
+
+
+def _custom_stock_bases_map_unlocked() -> dict[str, str]:
+    return _normalize_custom_stock_bases_map(state.get("custom_stock_bases"))
+
+
+def all_stock_base_catalog_unlocked() -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = [
+        {"id": str(b["id"]).strip().upper(), "label": str(b["label"]).strip()}
+        for b in STOCK_BASE_CATALOG
+    ]
+    custom = _custom_stock_bases_map_unlocked()
+    for bid in sorted(custom.keys()):
+        rows.append({"id": bid, "label": custom[bid]})
+    return rows
 
 
 def stock_base_label(base_id: str) -> str:
     b = str(base_id or "").strip().upper()
-    return STOCK_BASE_LABEL_BY_ID.get(b, str(base_id or "").strip() or b)
+    if b in STOCK_BASE_LABEL_BY_ID:
+        return STOCK_BASE_LABEL_BY_ID[b]
+    custom = _custom_stock_bases_map_unlocked()
+    if b in custom:
+        return custom[b]
+    return str(base_id or "").strip() or b
 
 
 def default_stock_base_id() -> str:
@@ -204,7 +252,7 @@ def _site_owner_username_norm() -> str | None:
 
 
 def can_skip_custom_stock_base(username: str) -> bool:
-    """Site owner may pick any catalog base on web upload without registering a custom base."""
+    """Site owner may pick any known base on web upload without pre-selecting one."""
     so = _site_owner_username_norm()
     return bool(so and norm_user(username) == so)
 
@@ -218,8 +266,10 @@ def normalize_stock_upload_country(code: str) -> str:
 
 
 def all_known_stock_bases_unlocked() -> set[str]:
-    """Call with state_lock held. Only GOATYS catalog bases (no legacy MONEY_BASE / TONY_BASE)."""
-    return set(VALID_STOCK_BASES)
+    """Call with state_lock held. Includes built-in and custom bases."""
+    known = set(VALID_STOCK_BASES)
+    known.update(_custom_stock_bases_map_unlocked().keys())
+    return known
 
 try:
     TOPUP_SUBMIT_MAX_HOURLY = int(os.environ.get("TOPUP_SUBMIT_MAX_HOURLY", "8").strip())
@@ -270,6 +320,7 @@ def _default_state() -> dict[str, Any]:
         "sold_stock_daily": {},
         "sold_stock_recent": [],
         "admin_stock_bases": {},
+        "custom_stock_bases": {},
         "telegram_stock_sessions": {},
     }
 
@@ -314,19 +365,28 @@ def load_state() -> None:
     state.setdefault("sold_stock_daily", {})
     state.setdefault("sold_stock_recent", [])
     state.setdefault("admin_stock_bases", {})
+    state.setdefault("custom_stock_bases", {})
     state.setdefault("telegram_stock_sessions", {})
-    # Drop legacy custom bases; shop uses STOCK_BASE_CATALOG only.
-    if state.get("admin_stock_bases"):
+    if not isinstance(state.get("admin_stock_bases"), dict):
         state["admin_stock_bases"] = {}
-    # Remove legacy MONEY_BASE / TONY_BASE rows from shop inventory.
-    stock = state.get("stock") or []
-    cleaned = [
-        s
-        for s in stock
-        if isinstance(s, dict) and str(s.get("base") or "") in VALID_STOCK_BASES
-    ]
-    if len(cleaned) != len(stock):
-        state["stock"] = cleaned
+    if not isinstance(state.get("custom_stock_bases"), (dict, list)):
+        state["custom_stock_bases"] = {}
+    # Normalize custom base map shape and migrate any legacy admin base ids into it.
+    normalized_custom = _normalize_custom_stock_bases_map(state.get("custom_stock_bases"))
+    changed_custom = normalized_custom != (state.get("custom_stock_bases") or {})
+    legacy_admin_bases = state.get("admin_stock_bases")
+    if isinstance(legacy_admin_bases, dict):
+        for _u, b in legacy_admin_bases.items():
+            bid = str(b or "").strip().upper()
+            if not bid:
+                continue
+            if bid in VALID_STOCK_BASES:
+                continue
+            if ADMIN_STOCK_BASE_NAME_RE.fullmatch(bid) and bid not in normalized_custom:
+                normalized_custom[bid] = bid
+                changed_custom = True
+    if changed_custom:
+        state["custom_stock_bases"] = normalized_custom
         save_state()
 
     _bootstrap_site_owner_account()
@@ -2846,8 +2906,10 @@ def shop_products_static():
 
 @app.get("/api/stock-bases")
 def api_stock_bases():
-    """Catalog bases for shop filters and admin uploads."""
-    return jsonify([{"id": b["id"], "label": b["label"]} for b in STOCK_BASE_CATALOG])
+    """Catalog bases (built-in + custom) for shop filters and admin uploads."""
+    with state_lock:
+        rows = all_stock_base_catalog_unlocked()
+    return jsonify(rows)
 
 
 @app.get("/api/products")
@@ -3133,19 +3195,65 @@ def api_admin_set_stock_base():
         abort(403)
     data = request.get_json(force=True, silent=True) or {}
     raw = (data.get("base_key") or data.get("base") or "").strip().upper()
-    if raw not in VALID_STOCK_BASES:
-        labels = ", ".join(b["label"] for b in STOCK_BASE_CATALOG)
-        return jsonify(
-            {
-                "ok": False,
-                "error": f"Pick a shop base id: {labels} (e.g. BLACKJACK_BASE).",
-            }
-        ), 400
-    u = norm_user(au)
     with state_lock:
+        known = all_known_stock_bases_unlocked()
+        if raw not in known:
+            labels = ", ".join(
+                f"{row['label']} ({row['id']})" for row in all_stock_base_catalog_unlocked()
+            )
+            return jsonify(
+                {
+                    "ok": False,
+                    "error": f"Pick a valid shop base id. Available: {labels}",
+                }
+            ), 400
+        u = norm_user(au)
         state.setdefault("admin_stock_bases", {})[u] = raw
         save_state()
     return jsonify({"ok": True, "stock_base": raw})
+
+
+@app.post("/api/admin/create-stock-base")
+def api_admin_create_stock_base():
+    au = request_auth_username()
+    if not au or not is_site_web_admin(au):
+        abort(403)
+    data = request.get_json(force=True, silent=True) or {}
+    bid = str(data.get("base_id") or data.get("id") or data.get("base") or "").strip().upper()
+    if not ADMIN_STOCK_BASE_NAME_RE.fullmatch(bid):
+        return (
+            jsonify(
+                {
+                    "ok": False,
+                    "error": "Base id must be 3-32 chars, start with a letter, and use A-Z, 0-9, underscore (example: VIP_USA_BASE).",
+                }
+            ),
+            400,
+        )
+    raw_label = str(data.get("label") or data.get("name") or bid).strip()
+    label = raw_label[:48] if raw_label else bid
+    u = norm_user(au)
+    with state_lock:
+        custom = _custom_stock_bases_map_unlocked()
+        created = bid not in VALID_STOCK_BASES and bid not in custom
+        if bid not in VALID_STOCK_BASES:
+            cstore = state.setdefault("custom_stock_bases", {})
+            if not isinstance(cstore, dict):
+                cstore = {}
+                state["custom_stock_bases"] = cstore
+            cstore[bid] = label
+        state.setdefault("admin_stock_bases", {})[u] = bid
+        save_state()
+        bases = all_stock_base_catalog_unlocked()
+    return jsonify(
+        {
+            "ok": True,
+            "created": created,
+            "stock_base": bid,
+            "label": stock_base_label(bid),
+            "bases": bases,
+        }
+    )
 
 
 @app.post("/api/admin/stock-bulk")
@@ -4812,17 +4920,25 @@ async def tg_stockbase(update, context) -> None:
         cur = context.user_data.get("stock_upload_base")
         await msg.reply_text(
             f"Current upload base: <code>{html.escape(str(cur or '—'))}</code>\n"
-            "Set: <code>/stockbase BLACKJACK_BASE</code> (or MONEYJR_BASE, UHQ_USA_BASE, "
-            "FOREIGN_RICH_FUCKERS_BASE).",
+            "Set: <code>/stockbase BASE_ID</code> (example <code>BLACKJACK_BASE</code>).",
             parse_mode="HTML",
         )
         return
     b = context.args[0].strip().upper()
     with state_lock:
-        ok = b in all_known_stock_bases_unlocked()
+        catalog_rows = all_stock_base_catalog_unlocked()
+        ok = b in {str(r.get("id") or "").strip().upper() for r in catalog_rows}
     if not ok:
+        ids_hint = ", ".join(
+            f"<code>{html.escape(str(r.get('id') or ''))}</code>" for r in catalog_rows[:12]
+        )
+        if len(catalog_rows) > 12:
+            ids_hint += ", …"
         await msg.reply_text(
-            "Unknown base. Use BLACKJACK_BASE, MONEYJR_BASE, UHQ_USA_BASE, or FOREIGN_RICH_FUCKERS_BASE."
+            "Unknown base id.\n"
+            f"Try one of: {ids_hint}\n"
+            "You can create new bases on the website admin panel.",
+            parse_mode="HTML",
         )
         return
     context.user_data["stock_upload_base"] = b
@@ -5005,13 +5121,16 @@ def _tg_stock_start_params_from_body(
 def _build_stock_base_kb() -> Any:
     from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
+    catalog = all_stock_base_catalog_unlocked() or [
+        {"id": str(b["id"]), "label": str(b["label"])} for b in STOCK_BASE_CATALOG
+    ]
     rows: list[list[InlineKeyboardButton]] = []
     row: list[InlineKeyboardButton] = []
-    for b in STOCK_BASE_CATALOG:
+    for b in catalog:
         row.append(
             InlineKeyboardButton(
-                b["label"][:40],
-                callback_data=f"stockbase:{b['id']}",
+                str(b.get("label") or b.get("id") or "")[:40],
+                callback_data=f"stockbase:{str(b.get('id') or '').upper()}",
             )
         )
         if len(row) == 2:

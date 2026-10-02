@@ -8239,6 +8239,12 @@
                                 <label style="font-size: 13px; color: var(--gray);">Stock base for this upload</label>
                                 <select class="input-field" id="pluxoStockUploadSystemBase"></select>
                             </div>
+                            <div style="border: 1px solid rgba(113,113,122,0.35); border-radius: 10px; padding: 12px;">
+                                <label style="font-size: 13px; color: var(--gray);">Create new base (shows on site + upload menus)</label>
+                                <input type="text" class="input-field" id="pluxoNewStockBaseId" placeholder="Base ID (example: VIP_USA_BASE)" style="margin-top: 8px; text-transform: uppercase;">
+                                <input type="text" class="input-field" id="pluxoNewStockBaseLabel" placeholder="Label (example: VIP USA ⭐)" style="margin-top: 8px;">
+                                <button type="button" class="btn btn-admin" onclick="submitPluxoCreateStockBase()" style="background: #3f3f46; width: 100%; margin-top: 8px;">Create base</button>
+                            </div>
                             <label style="font-size: 13px; color: var(--gray);">Price per line ($)</label>
                             <input type="number" class="input-field" id="pluxoStockUploadPrice" placeholder="e.g. 25.00" step="0.01" min="0.01">
                             <label style="font-size: 13px; color: var(--gray);">Bulk lines (same format as Telegram /stock)</label>
@@ -9250,7 +9256,7 @@
             // Always show the base dropdown for any admin — owner or not.
             if (row) row.style.display = 'block';
             if (hint) {
-                hint.textContent = 'Pick the base your cards belong to (BLACKJACK, MoneyJR, UHQ USA, FOREIGN). Default is BLACKJACK.';
+                hint.textContent = 'Pick an existing base or create a new one below. New bases appear in site filters and upload menus right away.';
             }
         }
 
@@ -9258,7 +9264,7 @@
             var inp = document.getElementById('adminStockBaseInput');
             var v = (inp && inp.value || '').trim().toUpperCase();
             if (!v) {
-                showAnimatedPopup('Error', 'Enter a base name', 'error');
+                showAnimatedPopup('Error', 'Pick a base first', 'error');
                 return;
             }
             try {
@@ -9277,6 +9283,53 @@
                 if (inp) inp.value = '';
                 showAnimatedPopup('Success', 'Base ' + pluxoBaseLabel(userData.stockBase) + ' saved. Upload stock below or via Telegram /stock.', 'success');
                 pluxoSyncAdminStockForm();
+            } catch (err) {
+                showAnimatedPopup('Error', err.message || 'Error', 'error');
+            }
+        }
+
+        async function submitPluxoCreateStockBase() {
+            if (!verifyAdminAccess()) return;
+            if (!(await pluxoEnsureAdminApiAuth('create stock base'))) return;
+            var idEl = document.getElementById('pluxoNewStockBaseId');
+            var labelEl = document.getElementById('pluxoNewStockBaseLabel');
+            var bid = ((idEl && idEl.value) || '').trim().toUpperCase();
+            var blabel = ((labelEl && labelEl.value) || '').trim();
+            if (!bid) {
+                showAnimatedPopup('Error', 'Enter a base ID like VIP_USA_BASE', 'error');
+                return;
+            }
+            if (!/^[A-Z][A-Z0-9_]{2,31}$/.test(bid)) {
+                showAnimatedPopup('Error', 'Base ID must be 3-32 chars and use A-Z, 0-9, underscore.', 'error');
+                return;
+            }
+            try {
+                var r = await fetch(BOT_WEBHOOK_URL + '/api/admin/create-stock-base', {
+                    method: 'POST',
+                    headers: pluxoAuthHeaders(),
+                    body: JSON.stringify({ base_id: bid, label: blabel || bid })
+                });
+                var d = await pluxoReadApiJson(r);
+                if (!r.ok || !d.ok) throw new Error(pluxoAdminErrorMessage(r, d, 'Could not create base'));
+                if (Array.isArray(d.bases) && d.bases.length) {
+                    PLUXO_STOCK_BASE_CATALOG = d.bases;
+                } else {
+                    await pluxoInitStockBases();
+                }
+                pluxoPopulateStockBaseSelect(document.getElementById('adminStockBaseInput'));
+                pluxoPopulateStockBaseSelect(document.getElementById('pluxoStockUploadSystemBase'));
+                var uploadSel = document.getElementById('pluxoStockUploadSystemBase');
+                if (uploadSel) uploadSel.value = d.stock_base || bid;
+                if (userData) {
+                    userData.stockBase = d.stock_base || bid;
+                    userData.needsStockBase = false;
+                    localStorage.setItem('pluxoUser', JSON.stringify(userData));
+                }
+                if (idEl) idEl.value = '';
+                if (labelEl) labelEl.value = '';
+                if (typeof refreshPluxoBaseFilterOptions === 'function') refreshPluxoBaseFilterOptions();
+                var pretty = d.label || pluxoBaseLabel(d.stock_base || bid);
+                showAnimatedPopup('Success', 'Base created: ' + pretty + ' (' + (d.stock_base || bid) + ')', 'success');
             } catch (err) {
                 showAnimatedPopup('Error', err.message || 'Error', 'error');
             }
@@ -9415,6 +9468,7 @@
             }
         }
         window.submitAdminStockBaseSetup = submitAdminStockBaseSetup;
+        window.submitPluxoCreateStockBase = submitPluxoCreateStockBase;
         window.submitPluxoAdminStockBulk = submitPluxoAdminStockBulk;
 
         function applyReferralFieldsFromApi(d, ud) {
