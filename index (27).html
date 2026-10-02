@@ -13910,6 +13910,58 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
 
         window.shopCheckoutConfirmPick = shopCheckoutConfirmPick;
 
+        function buildCheckoutDownloadText(bought, checkoutId, username) {
+            var rows = Array.isArray(bought) ? bought : [];
+            var out = [];
+            out.push('GOATYS PURCHASE RECEIPT');
+            out.push('checkout_id: ' + String(checkoutId || ''));
+            out.push('username: ' + String((username || '').toLowerCase()));
+            out.push('generated_utc: ' + new Date().toISOString());
+            out.push('items_count: ' + rows.length);
+            out.push('');
+            rows.forEach(function (row, i) {
+                var kind = String(row && row.kind ? row.kind : 'stock');
+                var base = String(row && row.base ? row.base : '—');
+                var price = Number(row && row.price ? row.price : 0);
+                var info = String(row && row.full_info ? row.full_info : '').trim();
+                out.push('----- item ' + String(i + 1) + ' -----');
+                out.push('kind: ' + kind);
+                out.push('base: ' + base);
+                out.push('price: $' + (isFinite(price) ? price.toFixed(2) : '0.00'));
+                if (info) {
+                    out.push(info);
+                } else {
+                    out.push('(no full_info payload)');
+                }
+                out.push('');
+            });
+            return out.join('\n').trim() + '\n';
+        }
+
+        function triggerCheckoutTxtDownload(text, username, checkoutId) {
+            var payload = String(text || '').trim();
+            if (!payload) return false;
+            try {
+                var safeUser = (username ? String(username).toLowerCase() : 'user').replace(/[^a-z0-9_.-]/gi, '_');
+                var safeCheckout = String(checkoutId || Date.now()).replace(/[^a-zA-Z0-9_.-]/g, '_');
+                var blob = new Blob([payload], { type: 'text/plain;charset=utf-8' });
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = 'goatys-purchase-' + safeUser + '-' + safeCheckout + '.txt';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(function () {
+                    URL.revokeObjectURL(url);
+                }, 1200);
+                return true;
+            } catch (err) {
+                console.warn('Auto purchase .txt download failed:', err);
+                return false;
+            }
+        }
+
         async function checkout() {
             if (!userData) {
                 showAnimatedPopup('Error', 'Please login first', 'error');
@@ -13975,6 +14027,13 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
                 var groupedCheckoutOrders =
                     groupCheckoutBoughtIntoOrderRecords(bought, checkoutBatchId, purchaseIsoOne);
                 await persistOrderDetailsBulk(groupedCheckoutOrders);
+
+                var autoDownloadText = buildCheckoutDownloadText(
+                    bought,
+                    checkoutBatchId,
+                    userData.username
+                );
+                triggerCheckoutTxtDownload(autoDownloadText, userData.username, checkoutBatchId);
                 
                 userData.cart = [];
                 localStorage.setItem('pluxoUser', JSON.stringify(userData));
@@ -14005,7 +14064,7 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
                         itemCount +
                         ' item(s) saved as ' +
                         groupedCheckoutOrders.length +
-                        ' order line(s). Open Orders for grouped details.',
+                        ' order line(s). A .txt receipt was downloaded automatically. Open Orders for grouped details.',
                     'success'
                 );
                 toggleCart();

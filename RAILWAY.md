@@ -42,6 +42,7 @@ Optional: **`PLUXO_TELEGRAM_POLL=never`** on extra workers when you deliberately
 ### Optional
 
 - **`PORT`** — Railway sets `PORT` automatically; you normally **do not** need to define it.
+- **`PLUXO_BACKUP_PUSH_INTERVAL_SECONDS`** — Telegram backup push interval (default `3600` seconds).
 
 ## Sanity checks after deploy
 

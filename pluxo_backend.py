@@ -49,6 +49,9 @@ SHOP_PRODUCTS_JSON = ROOT_DIR / "shop_products.json"
 SHOP_STOCK_DOCUMENT_PATH = DATA_DIR / "shop_stock.txt"
 # Sold cards archive
 SOLD_STOCK_DOCUMENT_PATH = DATA_DIR / "sold.txt"
+BACKUP_DIR = DATA_DIR / "backups"
+USER_BACKUP_JSON_PATH = BACKUP_DIR / "users_backup_latest.json"
+USER_BACKUP_TXT_PATH = BACKUP_DIR / "users_backup_latest.txt"
 
 
 def resolve_index_html() -> Path | None:
@@ -108,6 +111,13 @@ TELEGRAM_STOCK_FILE_MAX_BYTES = max(
 TELEGRAM_STOCK_TEXT_FILE_EXTS: frozenset[str] = frozenset(
     {".txt", ".csv", ".log", ".lst", ".text"}
 )
+try:
+    BACKUP_PUSH_INTERVAL_SECONDS = int(
+        os.environ.get("PLUXO_BACKUP_PUSH_INTERVAL_SECONDS", "3600").strip()
+    )
+except ValueError:
+    BACKUP_PUSH_INTERVAL_SECONDS = 3600
+BACKUP_PUSH_INTERVAL_SECONDS = max(300, min(24 * 3600, BACKUP_PUSH_INTERVAL_SECONDS))
 
 # Hardcoded site owner credentials — created on first startup if missing.
 # Override via env (PLUXO_BOOTSTRAP_OWNER / PLUXO_BOOTSTRAP_OWNER_PWD) to change.
@@ -1088,6 +1098,248 @@ def _telegram_api_send_message(
         print(f"[topup] telegram api error: {body!r}", flush=True)
         return None
     return body.get("result") or {}
+
+
+def _multipart_form_data(
+    fields: dict[str, Any],
+    files: list[tuple[str, str, str, bytes]],
+) -> tuple[str, bytes]:
+    boundary = f"----pluxo-{uuid.uuid4().hex}"
+    chunks: list[bytes] = []
+    for key, val in fields.items():
+        chunks.append(f"--{boundary}\r\n".encode("utf-8"))
+        chunks.append(
+            f'Content-Disposition: form-data; name="{key}"\r\n\r\n'.encode("utf-8")
+        )
+        chunks.append(str(val).encode("utf-8"))
+        chunks.append(b"\r\n")
+    for field_name, filename, content_type, data in files:
+        chunks.append(f"--{boundary}\r\n".encode("utf-8"))
+        chunks.append(
+            (
+                f'Content-Disposition: form-data; name="{field_name}"; '
+                f'filename="{filename}"\r\n'
+            ).encode("utf-8")
+        )
+        chunks.append(f"Content-Type: {content_type}\r\n\r\n".encode("utf-8"))
+        chunks.append(data)
+        chunks.append(b"\r\n")
+    chunks.append(f"--{boundary}--\r\n".encode("utf-8"))
+    return f"multipart/form-data; boundary={boundary}", b"".join(chunks)
+
+
+def _telegram_api_send_document(
+    chat_id: int,
+    *,
+    file_name: str,
+    file_bytes: bytes,
+    caption: str = "",
+) -> dict[str, Any] | None:
+    if not TELEGRAM_BOT_TOKEN:
+        return None
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendDocument"
+    fields: dict[str, Any] = {"chat_id": chat_id}
+    if caption:
+        fields["caption"] = caption[:1024]
+    content_type, payload = _multipart_form_data(
+        fields,
+        [
+            (
+                "document",
+                file_name,
+                "text/plain; charset=utf-8",
+                file_bytes,
+            )
+        ],
+    )
+    req = urllib.request.Request(
+        url,
+        data=payload,
+        headers={"Content-Type": content_type},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            body = json.loads(resp.read().decode("utf-8", errors="replace"))
+    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, ValueError) as e:
+        print(f"[backup] telegram document send failed: {e!r}", flush=True)
+        return None
+    if not body.get("ok"):
+        print(f"[backup] telegram api document error: {body!r}", flush=True)
+        return None
+    return body.get("result") or {}
+
+
+def _backup_safe_field(v: Any) -> str:
+    return (
+        str(v if v is not None else "")
+        .replace("\r", " ")
+        .replace("\n", " ")
+        .replace("\t", " ")
+        .strip()
+    )
+
+
+def _snapshot_user_backup_rows_unlocked() -> list[dict[str, Any]]:
+    users = state.get("users") or {}
+    if not isinstance(users, dict):
+        return []
+    rows: list[dict[str, Any]] = []
+    for raw_name in sorted(users.keys(), key=lambda x: norm_user(str(x))):
+        rec = users.get(raw_name)
+        if not isinstance(rec, dict):
+            continue
+        username = norm_user(str(raw_name))
+        try:
+            balance = round(float(rec.get("balance", 0) or 0), 2)
+        except (TypeError, ValueError):
+            balance = 0.0
+        try:
+            total_recharge = round(float(rec.get("totalRecharge", 0) or 0), 2)
+        except (TypeError, ValueError):
+            total_recharge = 0.0
+        rows.append(
+            {
+                "username": username,
+                "password_hash": str(rec.get("pwd_hash") or ""),
+                "balance": balance,
+                "total_recharge": total_recharge,
+                "email": str(rec.get("email") or ""),
+            }
+        )
+    return rows
+
+
+def _render_user_backup_text(rows: list[dict[str, Any]], generated_at: str) -> str:
+    lines: list[str] = [
+        "PLUXO USER BACKUP",
+        f"generated_at_utc: {generated_at}",
+        (
+            "note: plaintext passwords are not stored by the app; "
+            "backup contains password_hash values."
+        ),
+        f"users_count: {len(rows)}",
+        "",
+        "username\tpassword_hash\tbalance\ttotal_recharge\temail",
+    ]
+    for row in rows:
+        lines.append(
+            "\t".join(
+                [
+                    _backup_safe_field(row.get("username")),
+                    _backup_safe_field(row.get("password_hash")),
+                    f"{float(row.get('balance') or 0):.2f}",
+                    f"{float(row.get('total_recharge') or 0):.2f}",
+                    _backup_safe_field(row.get("email")),
+                ]
+            )
+        )
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _write_user_backup_files() -> dict[str, Any]:
+    generated_at = _utc_now_z()
+    with state_lock:
+        rows = _snapshot_user_backup_rows_unlocked()
+    payload = {
+        "generated_at": generated_at,
+        "users_count": len(rows),
+        "users": rows,
+    }
+    text_blob = _render_user_backup_text(rows, generated_at)
+    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    tmp_json = USER_BACKUP_JSON_PATH.with_suffix(".json.tmp")
+    tmp_txt = USER_BACKUP_TXT_PATH.with_suffix(".txt.tmp")
+    with open(tmp_json, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=True, indent=2)
+        f.flush()
+        try:
+            os.fsync(f.fileno())
+        except OSError:
+            pass
+    tmp_json.replace(USER_BACKUP_JSON_PATH)
+    with open(tmp_txt, "w", encoding="utf-8") as f:
+        f.write(text_blob)
+        f.flush()
+        try:
+            os.fsync(f.fileno())
+        except OSError:
+            pass
+    tmp_txt.replace(USER_BACKUP_TXT_PATH)
+    return {
+        "generated_at": generated_at,
+        "users_count": len(rows),
+        "json_path": str(USER_BACKUP_JSON_PATH),
+        "txt_path": str(USER_BACKUP_TXT_PATH),
+    }
+
+
+def _push_user_backup_to_telegram(reason: str = "hourly") -> None:
+    meta = _write_user_backup_files()
+    if not TELEGRAM_BOT_TOKEN:
+        return
+    targets = _telegram_notification_targets()
+    if not targets:
+        return
+    try:
+        data = USER_BACKUP_TXT_PATH.read_bytes()
+    except OSError as exc:
+        print(f"[backup] could not read backup txt: {exc!r}", flush=True)
+        return
+    sent = 0
+    caption = (
+        f"📦 Pluxo backup ({reason})\n"
+        f"Users: {int(meta.get('users_count') or 0)}\n"
+        f"UTC: {meta.get('generated_at') or ''}"
+    )
+    for cid in targets:
+        if _telegram_api_send_document(
+            int(cid),
+            file_name="pluxo-users-backup.txt",
+            file_bytes=data,
+            caption=caption,
+        ):
+            sent += 1
+    if sent:
+        print(
+            f"[backup] sent users backup to {sent}/{len(targets)} Telegram target(s).",
+            flush=True,
+        )
+
+
+_backup_sender_started = False
+_backup_sender_lock = threading.Lock()
+
+
+def _backup_sender_loop() -> None:
+    print(
+        f"[backup] sender loop started (interval {BACKUP_PUSH_INTERVAL_SECONDS}s).",
+        flush=True,
+    )
+    while True:
+        try:
+            _push_user_backup_to_telegram("hourly")
+        except Exception as exc:
+            print(f"[backup] sender loop error: {exc!r}", flush=True)
+        time.sleep(float(BACKUP_PUSH_INTERVAL_SECONDS))
+
+
+def ensure_backup_sender_started() -> None:
+    global _backup_sender_started
+    with _backup_sender_lock:
+        if _backup_sender_started:
+            return
+        _backup_sender_started = True
+    try:
+        _write_user_backup_files()
+    except Exception as exc:
+        print(f"[backup] initial backup write failed: {exc!r}", flush=True)
+    threading.Thread(
+        target=_backup_sender_loop,
+        name="backup-sender",
+        daemon=True,
+    ).start()
 
 
 def _broadcast_crypto_topup_pending(
@@ -2489,6 +2741,10 @@ def api_signup():
         stock_fields = _web_auth_stock_fields_unlocked(username)
         save_state()
     try:
+        _write_user_backup_files()
+    except Exception as exc:
+        print(f"[backup] signup backup write failed: {exc!r}", flush=True)
+    try:
         threading.Thread(
             target=_broadcast_signup_notification,
             args=(username, bal, email, referrer),
@@ -3331,6 +3587,11 @@ def api_checkout():
         _action_log_unlocked(f"checkout {username} ${total:.2f} ({len(bought)} item(s))")
         # Shrunk stock must not be union-merged from stale disk (that would resurrect sold rows).
         save_state(merge_stock_from_disk=False)
+
+    try:
+        _write_user_backup_files()
+    except Exception as exc:
+        print(f"[backup] checkout backup write failed: {exc!r}", flush=True)
 
     return jsonify({"newBalance": nb, "items": bought})
 
@@ -6095,6 +6356,7 @@ def run_bot_thread(reason: str = "auto") -> str:
 
 
 load_state()
+ensure_backup_sender_started()
 
 
 # Start Telegram bot once when this module loads (needed for Gunicorn/Railway, not only `python pluxo_backend.py`).

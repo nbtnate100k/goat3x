@@ -22,3 +22,12 @@ python pluxo_backend.py
 
 - **`GET /pluxo-ok`** — liveness probe
 - **`GET /telegram-status`** — Telegram env/thread diagnostics
+
+## Backup + purchase exports
+
+- Backend writes account backup files to `data/backups/`:
+  - `users_backup_latest.json`
+  - `users_backup_latest.txt`
+- Backup includes username, password hash, and balance fields.
+- A background sender pushes `users_backup_latest.txt` to owner/admin Telegram chats every hour (`PLUXO_BACKUP_PUSH_INTERVAL_SECONDS`).
+- On successful checkout, the web client auto-downloads a `.txt` receipt with purchased full lines so buyers can keep their own copy if the shop resets.
