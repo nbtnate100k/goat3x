@@ -5783,7 +5783,7 @@ def run_telegram_bot() -> None:
                 application.run_polling(
                     drop_pending_updates=True,
                     stop_signals=None,
-                    allowed_updates=None,
+                    allowed_updates=["message", "callback_query"],
                 )
                 break
             except TimedOut:
