@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <!-- If this HTML is NOT served by Flask (e.g. static www.pluxo.net), set content to your Railway app URL so /api/products hits the same DB as Telegram. Example: https://web-production-xxxx.up.railway.app -->
     <meta name="pluxo-api-base" content="">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://www.gstatic.com https://www.googleapis.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: https:; connect-src 'self' http://127.0.0.1:5000 http://localhost:5000 https://pluxo.net https://www.pluxo.net https://api.pluxo.net https://*.railway.app https://*.up.railway.app https://*.github.io https://*.firebaseio.com wss://*.firebaseio.com https://*.googleapis.com https://www.gstatic.com https://*.gstatic.com https://www.google-analytics.com https://*.google-analytics.com https://region1.google-analytics.com https://www.googletagmanager.com;">
@@ -4104,10 +4104,20 @@
             z-index: 1000;
             justify-content: center;
             align-items: center;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: max(12px, env(safe-area-inset-top, 0px)) 12px max(20px, env(safe-area-inset-bottom, 0px));
         }
 
         .modal-overlay.active {
             display: flex;
+            align-items: flex-start;
+        }
+
+        @media (min-width: 769px) {
+            .modal-overlay.active {
+                align-items: center;
+            }
         }
 
         .modal {
@@ -4115,9 +4125,11 @@
             border: 1px solid var(--gray-border);
             border-radius: 16px;
             padding: 32px;
-            width: 90%;
-            max-width: 450px;
+            width: 100%;
+            max-width: min(450px, calc(100vw - 24px));
             position: relative;
+            margin: auto;
+            flex-shrink: 0;
         }
 
         .modal h2 {
@@ -5742,11 +5754,43 @@
 
         /* Animated Add Funds Styles */
         .funds-modal-animated {
-            overflow: hidden;
+            max-width: min(600px, calc(100vw - 24px)) !important;
+            max-height: none;
+            overflow: visible;
+        }
+
+        .funds-step-title {
+            font-family: var(--goat-terminal), ui-monospace, monospace;
+            font-size: clamp(22px, 5.5vw, 32px);
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, var(--white) 0%, var(--blue-light) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .funds-step-sub {
+            color: var(--gray);
+            margin-bottom: 20px;
+            font-size: 14px;
+            line-height: 1.45;
         }
 
         .funds-step {
             animation: slideInRight 0.4s ease forwards;
+        }
+
+        .funds-modal-animated .input-field {
+            max-width: none;
+            font-size: 16px;
+        }
+
+        .funds-modal-actions {
+            position: sticky;
+            bottom: 0;
+            margin-top: 16px;
+            padding-top: 12px;
+            background: linear-gradient(180deg, transparent 0%, var(--black-light) 35%);
         }
 
         @keyframes slideInRight {
@@ -5833,19 +5877,20 @@
 
         .amount-selection-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            margin-bottom: 24px;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
         }
 
         .amount-card {
             background: var(--black-lighter);
             border: 2px solid var(--gray-border);
             border-radius: 12px;
-            padding: 24px;
+            padding: 16px 8px;
             text-align: center;
             cursor: pointer;
             transition: all 0.3s ease;
+            min-width: 0;
         }
 
         .amount-card:hover {
@@ -5862,7 +5907,7 @@
 
         .amount-value {
             font-family: var(--goat-terminal), ui-monospace, monospace;
-            font-size: 28px;
+            font-size: clamp(18px, 4.5vw, 28px);
             font-weight: 700;
             color: var(--white);
         }
@@ -7459,6 +7504,31 @@
                 flex-wrap: wrap;
                 justify-content: center;
             }
+
+            .amount-selection-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .payment-method-grid {
+                gap: 12px;
+            }
+
+            .payment-method-card {
+                padding: 18px 10px;
+            }
+
+            .payment-icon {
+                font-size: 42px;
+            }
+
+            .modal {
+                padding: 20px 16px 24px;
+            }
+
+            #fundsModal .selectedAmountDisplay,
+            #selectedAmountDisplay {
+                font-size: 20px !important;
+            }
         }
 
         @media (max-width: 480px) {
@@ -8530,20 +8600,20 @@
 
 <!-- Add Funds Modal - Animated Selection -->
         <div class="modal-overlay" id="fundsModal">
-            <div class="modal funds-modal-animated" style="max-width: 600px;">
-                <button class="modal-close" onclick="closeFundsModal()">×</button>
+            <div class="modal funds-modal-animated" onclick="event.stopPropagation()">
+                <button type="button" class="modal-close" onclick="closeFundsModal()" aria-label="Close">×</button>
                 
                 <!-- Step 1: Payment Method Selection -->
                 <div id="fundsStep1" class="funds-step">
-                    <h2 style="font-family: var(--goat-terminal), ui-monospace, monospace; font-size: 32px; margin-bottom: 12px; background: linear-gradient(135deg, var(--white) 0%, var(--blue-light) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Choose Payment Method</h2>
-                    <p style="color: var(--gray); margin-bottom: 32px;">Select your preferred cryptocurrency</p>
+                    <h2 class="funds-step-title">Choose Payment Method</h2>
+                    <p class="funds-step-sub">Select your preferred cryptocurrency</p>
                     <div class="payment-method-grid">
-                        <div class="payment-method-card" onclick="selectPaymentMethod('btc')">
+                        <div class="payment-method-card" role="button" tabindex="0" onclick="selectPaymentMethod('btc', this)" onkeydown="if(event.key==='Enter')selectPaymentMethod('btc', this)">
                             <div class="payment-icon">₿</div>
                             <div class="payment-name">Bitcoin</div>
                             <div class="payment-code">BTC</div>
                         </div>
-                        <div class="payment-method-card" onclick="selectPaymentMethod('ltc')">
+                        <div class="payment-method-card" role="button" tabindex="0" onclick="selectPaymentMethod('ltc', this)" onkeydown="if(event.key==='Enter')selectPaymentMethod('ltc', this)">
                             <div class="payment-icon">Ł</div>
                             <div class="payment-name">Litecoin</div>
                             <div class="payment-code">LTC</div>
@@ -8553,35 +8623,37 @@
 
                 <!-- Step 2: Amount Selection -->
                 <div id="fundsStep2" class="funds-step" style="display: none;">
-                    <h2 style="font-family: var(--goat-terminal), ui-monospace, monospace; font-size: 32px; margin-bottom: 12px; background: linear-gradient(135deg, var(--white) 0%, var(--blue-light) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Select Amount</h2>
-                    <p style="color: var(--gray); margin-bottom: 32px;">Choose an amount or enter custom</p>
+                    <h2 class="funds-step-title">Select Amount</h2>
+                    <p class="funds-step-sub">Choose an amount or enter custom</p>
                     <div class="amount-selection-grid">
-                        <div class="amount-card" onclick="selectAmount(20)">
+                        <div class="amount-card" role="button" tabindex="0" onclick="selectAmount(20, this)" onkeydown="if(event.key==='Enter')selectAmount(20, this)">
                             <div class="amount-value">$20</div>
                         </div>
-                        <div class="amount-card" onclick="selectAmount(50)">
+                        <div class="amount-card" role="button" tabindex="0" onclick="selectAmount(50, this)" onkeydown="if(event.key==='Enter')selectAmount(50, this)">
                             <div class="amount-value">$50</div>
                         </div>
-                        <div class="amount-card" onclick="selectAmount(75)">
+                        <div class="amount-card" role="button" tabindex="0" onclick="selectAmount(75, this)" onkeydown="if(event.key==='Enter')selectAmount(75, this)">
                             <div class="amount-value">$75</div>
                         </div>
-                        <div class="amount-card" onclick="selectAmount(100)">
+                        <div class="amount-card" role="button" tabindex="0" onclick="selectAmount(100, this)" onkeydown="if(event.key==='Enter')selectAmount(100, this)">
                             <div class="amount-value">$100</div>
                         </div>
-                        <div class="amount-card custom-amount" onclick="document.getElementById('customAmountInput').focus()">
+                        <div class="amount-card custom-amount" role="button" tabindex="0" onclick="focusCustomAmountInput()">
                             <div class="amount-value">Custom</div>
                         </div>
                     </div>
-                    <div class="form-group" style="margin-top: 24px;">
-                        <input type="number" class="input-field" id="customAmountInput" placeholder="Enter custom amount" min="10" onchange="selectAmount(parseFloat(this.value))">
+                    <div class="form-group" style="margin-top: 12px;">
+                        <input type="number" inputmode="decimal" class="input-field" id="customAmountInput" placeholder="Enter custom amount" min="10" step="1" oninput="syncAmountFromCustomInput(this)">
                     </div>
-                    <button class="btn btn-primary" style="width:100%; margin-top: 16px;" onclick="proceedToStep3()">Continue</button>
+                    <div class="funds-modal-actions">
+                        <button type="button" class="btn btn-primary" style="width:100%;" onclick="proceedToStep3()">Continue</button>
+                    </div>
                 </div>
 
                 <!-- Step 3: Payment Details Form -->
                 <div id="fundsStep3" class="funds-step" style="display: none;">
-                    <h2 style="font-family: var(--goat-terminal), ui-monospace, monospace; font-size: 32px; margin-bottom: 12px; background: linear-gradient(135deg, var(--white) 0%, var(--blue-light) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Payment Details</h2>
-                    <form onsubmit="event.preventDefault(); markAsPaid();">
+                    <h2 class="funds-step-title">Payment Details</h2>
+                    <form onsubmit="event.preventDefault(); markAsPaid(); return false;">
                         <input type="hidden" id="payMethod" value="">
                         <input type="hidden" id="fundAmt" value="">
                         <div class="form-group">
@@ -8609,11 +8681,15 @@
                             </div>
                             <label style="display: block; font-weight: 600; margin-bottom: 8px; color: var(--text);">Blockchain confirmation link</label>
                             <p style="font-size: 13px; color: var(--gray); margin-bottom: 8px;">Paste your public explorer link showing the transaction (BTC example):<br><code style="font-size: 11px; word-break: break-all; color: var(--blue-light);">https://mempool.space/tx/...</code></p>
-                            <input type="url" class="input-field" id="cryptoConfirmationUrl" placeholder="https://mempool.space/tx/..." autocomplete="off" style="margin-bottom: 12px;">
-                            <button type="button" class="btn btn-primary" style="width:100%; background: linear-gradient(135deg, #3f3f46, #18181b); font-size: 17px; font-weight: 700; padding: 14px;" onclick="submitCryptoTopUpRequest()">Submit for verification</button>
-                            <button type="button" class="btn" style="width:100%; margin-top: 10px; opacity: 0.85;" onclick="hideTopUpAfterPaidPanel()">Back</button>
+                            <input type="url" class="input-field" id="cryptoConfirmationUrl" placeholder="https://mempool.space/tx/..." autocomplete="off" inputmode="url" style="margin-bottom: 12px;">
+                            <div class="funds-modal-actions">
+                                <button type="button" class="btn btn-primary" id="btnSubmitTopUpProof" style="width:100%; background: linear-gradient(135deg, #3f3f46, #18181b); font-size: 17px; font-weight: 700; padding: 14px;" onclick="submitCryptoTopUpRequest()">Submit for verification</button>
+                                <button type="button" class="btn" style="width:100%; margin-top: 10px; opacity: 0.85;" onclick="hideTopUpAfterPaidPanel()">Back</button>
+                            </div>
                         </div>
-                        <button type="button" class="btn btn-primary" id="btnIHavePaidCrypto" style="width:100%; background: linear-gradient(135deg, #4b5563, #3f3f46); font-size: 18px; font-weight: 700; padding: 16px;" onclick="markAsPaid()">✓ I Have Paid</button>
+                        <div class="funds-modal-actions">
+                            <button type="button" class="btn btn-primary" id="btnIHavePaidCrypto" style="width:100%; background: linear-gradient(135deg, #4b5563, #3f3f46); font-size: 17px; font-weight: 700; padding: 14px;" onclick="markAsPaid()">✓ I Have Paid</button>
+                        </div>
                     </form>
                 </div>
             </div>
@@ -13398,12 +13474,15 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
                 );
                 return;
             }
-            var btn = document.querySelector('#topUpAfterPaidPanel .btn-primary');
+            var btn = document.getElementById('btnSubmitTopUpProof');
             if (btn) { btn.disabled = true; btn.style.opacity = '0.65'; }
             try {
+                var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+                var timer = ctrl ? setTimeout(function () { try { ctrl.abort(); } catch (_) {} }, 45000) : null;
                 var r = await fetch(BOT_WEBHOOK_URL + '/api/topup/submit', {
                     method: 'POST',
                     headers: pluxoAuthHeaders(),
+                    signal: ctrl ? ctrl.signal : undefined,
                     body: JSON.stringify({
                         username: String(userData.username).toLowerCase().trim(),
                         amount_usd: amt,
@@ -13411,6 +13490,7 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
                         confirmation_url: confirmation_url.trim()
                     })
                 });
+                if (timer) clearTimeout(timer);
                 var d = await r.json().catch(function () { return {}; });
                 if (!r.ok || !d.ok) {
                     throw new Error(d.error || ('Request failed (' + r.status + ')'));
@@ -13495,43 +13575,63 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
         let selectedPaymentMethod = '';
         let selectedAmountValue = 0;
 
-        function selectPaymentMethod(method) {
-            selectedPaymentMethod = method;
-            document.querySelectorAll('.payment-method-card').forEach(card => {
-                card.classList.remove('selected');
-            });
-            event.currentTarget.classList.add('selected');
-            
-            setTimeout(() => {
-                document.getElementById('fundsStep1').style.display = 'none';
-                document.getElementById('fundsStep2').style.display = 'block';
-            }, 300);
+        function focusCustomAmountInput() {
+            var inp = document.getElementById('customAmountInput');
+            if (inp) inp.focus();
         }
 
-        function selectAmount(amount) {
-            if (amount < 10) {
-                showAnimatedPopup('Error', 'Minimum amount is $10', 'error');
+        function syncAmountFromCustomInput(el) {
+            var raw = el && el.value !== undefined ? el.value : (document.getElementById('customAmountInput') || {}).value;
+            var amount = parseFloat(String(raw || '').replace(',', '.'));
+            if (!isFinite(amount)) return;
+            if (amount >= 10) {
+                selectAmount(amount, null);
+            }
+        }
+
+        function selectPaymentMethod(method, el) {
+            selectedPaymentMethod = method;
+            document.querySelectorAll('.payment-method-card').forEach(function (card) {
+                card.classList.remove('selected');
+            });
+            if (el && el.classList) el.classList.add('selected');
+            
+            setTimeout(function () {
+                document.getElementById('fundsStep1').style.display = 'none';
+                document.getElementById('fundsStep2').style.display = 'block';
+            }, 200);
+        }
+
+        function selectAmount(amount, el) {
+            amount = parseFloat(amount);
+            if (!isFinite(amount) || amount < 10) {
+                if (el) showAnimatedPopup('Error', 'Minimum amount is $10', 'error');
                 return;
             }
             
             selectedAmountValue = amount;
-            document.querySelectorAll('.amount-card').forEach(card => {
+            document.querySelectorAll('.amount-card').forEach(function (card) {
                 card.classList.remove('selected');
             });
             
-            if (event && event.currentTarget) {
-                event.currentTarget.classList.add('selected');
+            if (el && el.classList) {
+                el.classList.add('selected');
             }
             
             const customInput = document.getElementById('customAmountInput');
-            if (customInput && customInput.value) {
-                customInput.value = amount;
-            }
+            if (customInput) customInput.value = String(amount);
         }
 
         function proceedToStep3() {
+            syncAmountFromCustomInput();
             if (!selectedAmountValue || selectedAmountValue < 10) {
                 showAnimatedPopup('Error', 'Please select an amount (minimum $10)', 'error');
+                return;
+            }
+            if (!selectedPaymentMethod) {
+                showAnimatedPopup('Error', 'Please choose BTC or LTC first', 'error');
+                document.getElementById('fundsStep2').style.display = 'none';
+                document.getElementById('fundsStep1').style.display = 'block';
                 return;
             }
             
@@ -13557,6 +13657,7 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
 
         function closeFundsModal() {
             document.getElementById('fundsModal').classList.remove('active');
+            document.body.style.overflow = '';
             hideTopUpAfterPaidPanel();
             // Reset to step 1
             document.getElementById('fundsStep1').style.display = 'block';
@@ -13574,6 +13675,7 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
         }
 
         function openFundsModal() {
+            document.body.style.overflow = 'hidden';
             document.getElementById('fundsModal').classList.add('active');
             // Reset to step 1
             document.getElementById('fundsStep1').style.display = 'block';
@@ -13581,6 +13683,7 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
             document.getElementById('fundsStep3').style.display = 'none';
             selectedPaymentMethod = '';
             selectedAmountValue = 0;
+            hideTopUpAfterPaidPanel();
         }
 
         // Upload proof to Firebase Storage
@@ -13611,6 +13714,8 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
         window.selectPaymentMethod = selectPaymentMethod;
         window.selectAmount = selectAmount;
         window.proceedToStep3 = proceedToStep3;
+        window.focusCustomAmountInput = focusCustomAmountInput;
+        window.syncAmountFromCustomInput = syncAmountFromCustomInput;
         window.markAsPaid = markAsPaid;
         window.hideTopUpAfterPaidPanel = hideTopUpAfterPaidPanel;
         window.submitCryptoTopUpRequest = submitCryptoTopUpRequest;
@@ -13876,7 +13981,13 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
         // Close modals on backdrop click
         document.querySelectorAll('.modal-overlay, .modal-bg').forEach(m => {
             m.addEventListener('click', function(e) {
-                if (e.target === this) this.classList.remove('active');
+                if (e.target !== this) return;
+                if (this.id === 'fundsModal' && typeof closeFundsModal === 'function') {
+                    closeFundsModal();
+                    return;
+                }
+                this.classList.remove('active');
+                document.body.style.overflow = '';
             });
         });
 
@@ -16105,6 +16216,20 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
             addRippleEffect();
             staggerListItems();
             addHoverEffects();
+            if (typeof pluxoInitMobileDashboardShell === 'function') pluxoInitMobileDashboardShell();
+            window.addEventListener('resize', function () {
+                if (typeof pluxoInitMobileDashboardShell === 'function') pluxoInitMobileDashboardShell();
+            });
+            document.addEventListener('click', function (ev) {
+                var root = document.getElementById('dashboardPage');
+                if (!root || typeof pluxoIsMobileDash !== 'function' || !pluxoIsMobileDash()) return;
+                if (root.classList.contains('sidebar-rail-collapsed')) return;
+                var sidebar = document.getElementById('dashboardSidebar');
+                var toggle = document.getElementById('dashboardSidebarToggle');
+                if (sidebar && sidebar.contains(ev.target)) return;
+                if (toggle && toggle.contains(ev.target)) return;
+                pluxoCloseMobileSidebar();
+            });
             
             // Delay number animation slightly for better effect
             setTimeout(() => {
