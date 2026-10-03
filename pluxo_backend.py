@@ -2549,6 +2549,136 @@ def _pan_lines_from_multiline_export(blob: str) -> list[str]:
     return out
 
 
+_AKE_SERVICE_LABELS: dict[str, str] = {
+    "card scheme": "scheme",
+    "card type": "card_type",
+    "brand": "level",
+    "issuing bank": "issuer",
+    "country": "country_name",
+    "name": "name",
+    "address": "address",
+    "city": "city",
+    "state": "state",
+    "zip": "zip",
+    "phone": "phone",
+    "email": "email",
+}
+
+
+def _parse_ake_labeled_fields(block: str) -> dict[str, str]:
+    """Label on one line, value on the next (GTA / AKE card service export)."""
+    out: dict[str, str] = {}
+    lines = [ln.strip() for ln in block.replace("\r\n", "\n").split("\n")]
+    i = 0
+    while i < len(lines):
+        ln = lines[i]
+        if not ln or re.fullmatch(r"=+", ln):
+            i += 1
+            continue
+        low = ln.lower()
+        if low.startswith("iso:"):
+            m = re.search(r"ISO:\s*([A-Z]{2})", ln, re.I)
+            if m:
+                out["country_code"] = m.group(1).upper()
+            i += 1
+            continue
+        if low.startswith("bin:"):
+            i += 1
+            continue
+        key = _AKE_SERVICE_LABELS.get(low)
+        if key:
+            j = i + 1
+            while j < len(lines) and not lines[j]:
+                j += 1
+            if j < len(lines) and lines[j].lower() not in _AKE_SERVICE_LABELS:
+                if not _is_pan_pipe_line(lines[j]) and not re.fullmatch(r"=+", lines[j]):
+                    out[key] = lines[j]
+                i = j + 1
+                continue
+        i += 1
+    return out
+
+
+def _ake_block_to_enriched_card_line(pan_line: str, fields: dict[str, str]) -> str:
+    """Build PAN|…|Name|Phone|Email — SCHEME TYPE LEVEL — ISSUER — CC for shop parser."""
+    parts = [p.strip() for p in pan_line.strip().split("|")]
+    while len(parts) < 4:
+        parts.append("")
+    name = fields.get("name", "")
+    address = fields.get("address", "")
+    city = fields.get("city", "")
+    state = fields.get("state", "")
+    zip_code = fields.get("zip", "")
+    phone = fields.get("phone", "")
+    email = fields.get("email", "")
+    cc = (fields.get("country_code") or "").strip().upper()
+    if not cc and fields.get("country_name"):
+        cc = normalize_stock_upload_country(fields["country_name"])
+    if not cc:
+        cc = "US"
+    pipe = "|".join(
+        [
+            parts[0],
+            parts[1],
+            parts[2],
+            parts[3],
+            name,
+            address,
+            city,
+            state,
+            zip_code,
+            phone,
+            email,
+            cc,
+        ]
+    )
+    scheme = (fields.get("scheme") or "").strip()
+    ctype = (fields.get("card_type") or "").strip()
+    level = (fields.get("level") or "").strip()
+    issuer = (fields.get("issuer") or "").strip()
+    meta_chunks: list[str] = []
+    scheme_line = " ".join(x for x in (scheme, ctype, level) if x).strip()
+    if scheme_line:
+        meta_chunks.append(scheme_line)
+    if issuer:
+        meta_chunks.append(issuer)
+    if cc:
+        meta_chunks.append(cc)
+    if not meta_chunks:
+        return pipe
+    return pipe + " — " + " — ".join(meta_chunks)
+
+
+def _parse_ake_card_service_blocks(blob: str) -> list[str]:
+    """
+    Multi-block exports: Card N of M, PAN|MM|YY|CVV, then labeled BIN/scheme/bank fields.
+    """
+    text = blob.replace("\r\n", "\n")
+    if not _BIN_DETAIL_BLOCK_MARK.search(text):
+        return []
+    if not re.search(r"(?mi)^Issuing Bank\s*$", text) and not re.search(
+        r"(?mi)^Card Scheme\s*$", text
+    ):
+        return []
+    chunks = re.split(r"(?mi)(?=^Card\s+\d+\s+of\s+\d+\s*$)", text)
+    out: list[str] = []
+    for chunk in chunks:
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        pan_line: str | None = None
+        for ln in chunk.split("\n"):
+            s = ln.strip()
+            if _is_pan_pipe_line(s):
+                pan_line = s
+                break
+        if not pan_line:
+            continue
+        fields = _parse_ake_labeled_fields(chunk)
+        out.append(_ake_block_to_enriched_card_line(pan_line, fields))
+    return out
+
+
 def bulk_paste_line_stats(blob: str, cards: list[str]) -> dict[str, int]:
     raw_lines = len([ln for ln in blob.replace("\r\n", "\n").split("\n") if ln.strip()])
     parsed = len(cards)
@@ -2602,6 +2732,9 @@ def parse_stock_cards_bulk(blob: str) -> list[str]:
     blob = blob.replace("\r\n", "\n").strip()
     if not blob:
         return []
+    ake_cards = _parse_ake_card_service_blocks(blob)
+    if ake_cards:
+        return ake_cards
     pans = _pan_lines_from_multiline_export(blob)
     raw_lines = len([ln for ln in blob.split("\n") if ln.strip()])
     if pans and raw_lines > len(pans):
