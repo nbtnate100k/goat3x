@@ -1169,6 +1169,13 @@ def save_state(*, merge_stock_from_disk: bool = True) -> None:
         lock_fd = _try_acquire_state_file_lock(lock_path)
         try:
             disk_snapshot = _read_state_json_file()
+            if STATE_PATH.exists() and not isinstance(disk_snapshot, dict):
+                print(
+                    "[state] skip write: existing state.json is unreadable; "
+                    "refusing to overwrite stock/users",
+                    flush=True,
+                )
+                return
             if isinstance(disk_snapshot, dict):
                 _cross_process_merge_disk_into_state(
                     disk_snapshot, merge_stock=merge_stock_from_disk
@@ -3730,7 +3737,6 @@ def api_auth_me():
         ref_count = _count_referrals_unlocked(au)
         admin_flag = is_site_web_admin(au)
         stock_fields = _web_auth_stock_fields_unlocked(au)
-        save_state()
         return jsonify(
             {
                 "success": True,
