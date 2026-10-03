@@ -6189,13 +6189,14 @@ async def tg_stock_batch_message(update, context) -> None:
     msg = update.effective_message
     if not msg or not update.effective_user or not msg.text:
         return
+    uid = int(update.effective_user.id)
     with state_lock:
-        if _newbase_pending_is_set_unlocked(uid):
-            await tg_newbase_reply(update, context)
-            return
+        pending_newbase = _newbase_pending_is_set_unlocked(uid)
+    if pending_newbase:
+        await tg_newbase_reply(update, context)
+        return
     if not _is_staff(update.effective_user.id):
         return
-    uid = int(update.effective_user.id)
     chat_id = int(getattr(update.effective_chat, "id", 0) or 0)
     text = (msg.text or "").strip()
     if not text:
