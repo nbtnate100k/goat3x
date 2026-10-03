@@ -9275,24 +9275,43 @@
         var WEBHOOK_SECRET = 'pluxo_secret_2024';
         console.log('API URL:', BOT_WEBHOOK_URL);
 
-        var PLUXO_DEFAULT_AUTH_MAX_AGE_SEC = 3600;
+        /* Fallback only; the server reports the real window as auth_max_age_seconds. */
+        var PLUXO_DEFAULT_AUTH_MAX_AGE_SEC = 604800;
 
+        /* Token lives in localStorage so a Safari tab reload/crash keeps the session,
+           and expires_at is kept in step with the server's token lifetime. */
         function pluxoGetAuthToken() {
+            try {
+                var t = localStorage.getItem('pluxo_auth_token');
+                if (t) return t;
+            } catch (err) {}
             try { return sessionStorage.getItem('pluxo_auth_token') || ''; } catch (err) { return ''; }
         }
         function pluxoGetAuthExpiresAtMs() {
-            try {
-                var raw = sessionStorage.getItem('pluxo_auth_expires_at');
-                return raw ? parseInt(raw, 10) : 0;
-            } catch (err) { return 0; }
+            var raw = null;
+            try { raw = localStorage.getItem('pluxo_auth_expires_at'); } catch (err) {}
+            if (!raw) {
+                try { raw = sessionStorage.getItem('pluxo_auth_expires_at'); } catch (err) {}
+            }
+            return raw ? parseInt(raw, 10) : 0;
         }
         function pluxoSetAuthSession(token, maxAgeSeconds) {
             var sec = parseInt(maxAgeSeconds, 10);
             if (!sec || sec < 60) sec = PLUXO_DEFAULT_AUTH_MAX_AGE_SEC;
+            var expires = String(Date.now() + sec * 1000);
+            try {
+                if (token) {
+                    localStorage.setItem('pluxo_auth_token', token);
+                    localStorage.setItem('pluxo_auth_expires_at', expires);
+                } else {
+                    localStorage.removeItem('pluxo_auth_token');
+                    localStorage.removeItem('pluxo_auth_expires_at');
+                }
+            } catch (err) {}
             try {
                 if (token) {
                     sessionStorage.setItem('pluxo_auth_token', token);
-                    sessionStorage.setItem('pluxo_auth_expires_at', String(Date.now() + sec * 1000));
+                    sessionStorage.setItem('pluxo_auth_expires_at', expires);
                 } else {
                     sessionStorage.removeItem('pluxo_auth_token');
                     sessionStorage.removeItem('pluxo_auth_expires_at');
@@ -9398,7 +9417,7 @@
             setInterval(function () {
                 if (!userData || !pluxoGetAuthToken()) return;
                 if (pluxoIsSessionExpired()) {
-                    pluxoForceLogout('You were signed out after 1 hour. Please sign in again.');
+                    pluxoForceLogout('Your session expired. Please sign in again.');
                 }
             }, 30000);
         }
@@ -13734,7 +13753,7 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
         function submitCryptoTopUpRequest() {
             if (_topUpSubmitInFlight) return;
             if (!pluxoGetAuthToken() || !userData || !userData.username) {
-                setTopUpInlineError('Sign in before submitting your payment link.');
+                setTopUpInlineError('Your session ended. Close this window, sign in again, then resubmit.');
                 return;
             }
             var paymentMethod = document.getElementById('payMethod').value;
@@ -13774,6 +13793,11 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
             }).then(function (r) {
                 if (timer) clearTimeout(timer);
                 return r.json().catch(function () { return {}; }).then(function (d) {
+                    if (r.status === 401) {
+                        var e401 = new Error('Your sign-in expired. Sign in again, then resubmit your link.');
+                        e401.authExpired = true;
+                        throw e401;
+                    }
                     if (!r.ok || !d.ok) {
                         throw new Error(d.error || ('Request failed (' + r.status + ')'));
                     }
@@ -13799,6 +13823,12 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
                 if (panel) panel.style.display = 'block';
                 if (fields) fields.style.display = '';
                 setTopUpInlineError(msg || 'Submit failed. Try again.');
+                if (err && err.authExpired) {
+                    window.setTimeout(function () {
+                        closeFundsModal();
+                        pluxoForceLogout('Your sign-in expired. Please sign in again and resubmit your payment link.');
+                    }, 1800);
+                }
             });
         }
 

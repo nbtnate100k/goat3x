@@ -4,6 +4,8 @@ __pycache__/
 *.pyc
 data/state.json
 data/telegram_poll.lock
+data/backups/
+data/topups_pending/
 
 # Optional: keep empty data dir in git for fresh clones (volumes on Railway use same path)
 !data/.gitkeep
