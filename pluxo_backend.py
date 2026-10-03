@@ -641,8 +641,6 @@ def _format_basepay_detail_html(row: dict[str, Any]) -> str:
     lbl = html.escape(str(row.get("label") or bid))
     cnt = int(row.get("count") or 0)
     gross = float(row.get("revenue") or 0)
-    tax = float(row.get("owner_tax") or 0)
-    net = float(row.get("seller_net") if row.get("seller_net") is not None else gross)
     hrs = row.get("window_hours") or 24
     since = html.escape(str(row.get("since_utc") or ""))
     updated = html.escape(str(row.get("generated_at_utc") or ""))
@@ -650,21 +648,46 @@ def _format_basepay_detail_html(row: dict[str, Any]) -> str:
     seller_line = ""
     if sellers:
         seller_line = f"\n<b>Seller:</b> <code>{html.escape(', '.join(sellers))}</code>"
-    chunks = [
-        f"💰 <b>{lbl}</b>\n",
-        f"<code>{bid}</code>{seller_line}\n\n",
-        f"<b>Last {hrs:g}h</b> (since <code>{since}</code> UTC)\n",
-        f"Cards sold: <b>{cnt}</b>\n",
-        f"Gross: <code>${gross:.2f}</code>\n",
-    ]
-    if row.get("tax_exempt"):
-        chunks.append("<i>Owner shop base — no seller tax split.</i>\n")
-    else:
-        pct = round(float(OWNER_TAX_RATE) * 100, 2)
-        chunks.append(f"Owner tax ({pct:g}%): <code>${tax:.2f}</code>\n")
-        chunks.append(f"Seller balance after tax: <code>${net:.2f}</code>\n")
-    chunks.append(f"\n<i>Updated {updated} UTC · tap Refresh</i>")
-    return "".join(chunks)
+    return (
+        f"💰 <b>{lbl}</b>\n"
+        f"<code>{bid}</code>{seller_line}\n\n"
+        f"<b>Last {hrs:g}h</b> (since <code>{since}</code> UTC)\n"
+        f"Cards sold: <b>{cnt}</b>\n"
+        f"Revenue (gross, before owner tax): <code>${gross:.2f}</code>\n"
+        f"\n<i>Updated {updated} UTC · tap Refresh</i>"
+    )
+
+
+def _basepay_callback_data_for_id(base_id: str) -> str:
+    """Telegram callback_data max 64 bytes — keep prefix + base id short."""
+    bid = str(base_id or "").strip().upper()
+    data = f"{BASEPAY_CALLBACK_PREFIX}:{bid}"
+    if len(data.encode("utf-8")) <= 64:
+        return data
+    short = bid[: max(1, 64 - len(f"{BASEPAY_CALLBACK_PREFIX}:"))]
+    return f"{BASEPAY_CALLBACK_PREFIX}:{short}"
+
+
+def _viewbasepay_list_items_unlocked(
+    stats_by_base: dict[str, dict[str, Any]] | None = None,
+) -> list[dict[str, str]]:
+    """Every shop/custom base plus any bucket that had sales in the window."""
+    stats_by_base = stats_by_base or {}
+    seen: set[str] = set()
+    items: list[dict[str, str]] = []
+    for item in all_stock_base_catalog_unlocked():
+        bid = str(item.get("id") or "").strip().upper()
+        if not bid or bid in seen:
+            continue
+        seen.add(bid)
+        items.append({"id": bid, "label": str(item.get("label") or bid)})
+    extra_ids = sorted(set(stats_by_base.keys()) - seen)
+    for bid in extra_ids:
+        if not bid:
+            continue
+        seen.add(bid)
+        items.append({"id": bid, "label": stock_base_label(bid)})
+    return items
 
 
 def _viewbasepay_keyboard_unlocked(
@@ -673,39 +696,49 @@ def _viewbasepay_keyboard_unlocked(
     from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
     stats_by_base = stats_by_base or {}
-    catalog = all_stock_base_catalog_unlocked()
     buttons: list[list[Any]] = []
     row: list[Any] = []
-    for item in catalog:
+    for item in _viewbasepay_list_items_unlocked(stats_by_base):
         bid = str(item.get("id") or "").strip().upper()
         lbl = str(item.get("label") or bid)
         st = stats_by_base.get(bid) or {}
         gross = float(st.get("revenue") or 0)
         cnt = int(st.get("count") or 0)
         short = lbl[:18] + ("…" if len(lbl) > 18 else "")
-        cap = f"{short} · ${gross:.0f}" if gross > 0 else short
+        cap = f"{short} · ${gross:.2f}" if gross > 0 else f"{short} · $0"
         if cnt and gross <= 0:
             cap = f"{short} · {cnt}c"
-        row.append(InlineKeyboardButton(cap, callback_data=f"{BASEPAY_CALLBACK_PREFIX}:{bid}"))
+        row.append(
+            InlineKeyboardButton(cap, callback_data=_basepay_callback_data_for_id(bid))
+        )
         if len(row) >= 2:
             buttons.append(row)
             row = []
     if row:
         buttons.append(row)
+    if not buttons:
+        return None
     return InlineKeyboardMarkup(buttons)
+
+
+def _basepay_refresh_callback_data_for_id(base_id: str) -> str:
+    bid = str(base_id or "").strip().upper()
+    data = f"{BASEPAY_CALLBACK_PREFIX}_refresh:{bid}"
+    if len(data.encode("utf-8")) <= 64:
+        return data
+    short = bid[: max(1, 64 - len(f"{BASEPAY_CALLBACK_PREFIX}_refresh:"))]
+    return f"{BASEPAY_CALLBACK_PREFIX}_refresh:{short}"
 
 
 def _basepay_detail_keyboard(base_id: str) -> Any:
     from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
     bid = str(base_id or "").strip().upper()
+    refresh = _basepay_refresh_callback_data_for_id(bid)
     return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton(
-                    "🔄 Refresh",
-                    callback_data=f"{BASEPAY_CALLBACK_PREFIX}_refresh:{bid}",
-                ),
+                InlineKeyboardButton("🔄 Refresh", callback_data=refresh),
                 InlineKeyboardButton(
                     "📋 All bases",
                     callback_data=f"{BASEPAY_CALLBACK_PREFIX}_menu",
@@ -5671,6 +5704,53 @@ async def tg_cancel(update, context) -> None:
         await msg.reply_text("Nothing to cancel.")
 
 
+def _resolve_basepay_callback_id_unlocked(raw_id: str) -> str:
+    """Map callback token to full base id (handles rare 64-byte truncation)."""
+    token = str(raw_id or "").strip().upper()
+    if not token:
+        return ""
+    known = {item["id"] for item in _viewbasepay_list_items_unlocked()}
+    if token in known:
+        return token
+    matches = [b for b in known if b.startswith(token)]
+    if len(matches) == 1:
+        return matches[0]
+    return token
+
+
+def _viewbasepay_menu_text_unlocked() -> tuple[str, Any, dict[str, Any]]:
+    payload = _base_revenue_last_hours_unlocked(24.0)
+    payload = _enrich_base_revenue_with_owner_tax_unlocked(payload)
+    stats_by_base = {
+        str(r.get("base") or "").upper(): r
+        for r in (payload.get("totals") or [])
+        if isinstance(r, dict)
+    }
+    kb = _viewbasepay_keyboard_unlocked(stats_by_base)
+    grand = float(payload.get("grand_revenue") or 0)
+    text = (
+        "💵 <b>Base revenue</b> · last 24h (UTC)\n"
+        "Tap a base for <b>gross</b> sales (before owner tax).\n"
+        f"All bases total: <code>${grand:.2f}</code>\n"
+        f"<i>Updated {html.escape(str(payload.get('generated_at_utc') or ''))}</i>"
+    )
+    if kb is None:
+        text += "\n\n<i>No bases configured yet — use /newbase on Telegram or Admin.</i>"
+    return text, kb, payload
+
+
+async def _edit_or_reply_basepay(q, text: str, reply_markup: Any) -> None:
+    from telegram.error import BadRequest
+
+    try:
+        await q.edit_message_text(text, parse_mode="HTML", reply_markup=reply_markup)
+    except BadRequest as exc:
+        if "message is not modified" in str(exc).lower():
+            return
+        if q.message:
+            await q.message.reply_text(text, parse_mode="HTML", reply_markup=reply_markup)
+
+
 async def tg_viewbasepay(update, context) -> None:
     msg = update.effective_message
     if not msg or not update.effective_user:
@@ -5679,21 +5759,8 @@ async def tg_viewbasepay(update, context) -> None:
         await msg.reply_text(TG_AUTH_FAIL)
         return
     with state_lock:
-        payload = _base_revenue_last_hours_unlocked(24.0)
-        payload = _enrich_base_revenue_with_owner_tax_unlocked(payload)
-        stats_by_base = {
-            str(r.get("base") or "").upper(): r
-            for r in (payload.get("totals") or [])
-            if isinstance(r, dict)
-        }
-        kb = _viewbasepay_keyboard_unlocked(stats_by_base)
-    await msg.reply_text(
-        "💵 <b>Base pay</b> · last 24h (UTC)\n"
-        "Tap a base for live sales + owner tax split.\n"
-        f"<i>Updated {html.escape(str(payload.get('generated_at_utc') or ''))}</i>",
-        parse_mode="HTML",
-        reply_markup=kb,
-    )
+        text, kb, _payload = _viewbasepay_menu_text_unlocked()
+    await msg.reply_text(text, parse_mode="HTML", reply_markup=kb)
 
 
 async def tg_basepay_callback(update, context) -> None:
@@ -5706,22 +5773,9 @@ async def tg_basepay_callback(update, context) -> None:
     data = (q.data or "").strip()
     if data == f"{BASEPAY_CALLBACK_PREFIX}_menu":
         with state_lock:
-            payload = _base_revenue_last_hours_unlocked(24.0)
-            payload = _enrich_base_revenue_with_owner_tax_unlocked(payload)
-            stats_by_base = {
-                str(r.get("base") or "").upper(): r
-                for r in (payload.get("totals") or [])
-                if isinstance(r, dict)
-            }
-            kb = _viewbasepay_keyboard_unlocked(stats_by_base)
+            text, kb, _payload = _viewbasepay_menu_text_unlocked()
         await q.answer()
-        await q.edit_message_text(
-            "💵 <b>Base pay</b> · last 24h (UTC)\n"
-            "Tap a base for live sales + owner tax split.\n"
-            f"<i>Updated {html.escape(str(payload.get('generated_at_utc') or ''))}</i>",
-            parse_mode="HTML",
-            reply_markup=kb,
-        )
+        await _edit_or_reply_basepay(q, text, kb)
         return
     bid = ""
     if data.startswith(f"{BASEPAY_CALLBACK_PREFIX}_refresh:"):
@@ -5732,15 +5786,14 @@ async def tg_basepay_callback(update, context) -> None:
         await q.answer()
         return
     with state_lock:
-        if bid not in all_known_stock_bases_unlocked():
-            await q.answer("Unknown base", show_alert=True)
-            return
+        bid = _resolve_basepay_callback_id_unlocked(bid)
         row = _base_pay_row_for_id_unlocked(bid, 24.0)
-    await q.answer(f"{row.get('label') or bid}: ${float(row.get('revenue') or 0):.2f}")
-    await q.edit_message_text(
+    gross = float(row.get("revenue") or 0)
+    await q.answer(f"{row.get('label') or bid}: ${gross:.2f} gross")
+    await _edit_or_reply_basepay(
+        q,
         _format_basepay_detail_html(row),
-        parse_mode="HTML",
-        reply_markup=_basepay_detail_keyboard(bid),
+        _basepay_detail_keyboard(bid),
     )
 
 
