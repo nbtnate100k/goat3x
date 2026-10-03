@@ -9377,7 +9377,11 @@
                 });
                 var d = await pluxoReadApiJson(r);
                 if (!r.ok || !d.ok) throw new Error(pluxoAdminErrorMessage(r, d, 'Upload failed'));
-                showAnimatedPopup('Success', 'Added ' + d.added + ' line(s) → ' + d.base, 'success');
+                var stockMsg = 'Added ' + d.added + ' card line(s) → ' + d.base;
+                if (d.ignored_lines > 0) {
+                    stockMsg += ' (' + d.ignored_lines + ' non-card lines skipped; file had ' + d.raw_non_empty_lines + ' lines)';
+                }
+                showAnimatedPopup('Success', stockMsg, 'success');
                 if (bulkEl) bulkEl.value = '';
                 await generateProducts();
                 var pp = document.getElementById('page-products');

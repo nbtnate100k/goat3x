@@ -2440,6 +2440,32 @@ def commit_stock_cards(
 
 # Records in /stock bulk paste: start with 6–19 digit PAN then '|'
 _PAN_RECORD_START = re.compile(r"(?:^|[\s\r\n]+)(\d{6,19}\|)")
+_PAN_PIPE_LINE = re.compile(r"^\d{6,19}\|")
+_BIN_DETAIL_BLOCK_MARK = re.compile(r"(?mi)^Card\s+\d+\s+of\s+\d+\s*$")
+
+
+def _is_pan_pipe_line(line: str) -> bool:
+    return bool(_PAN_PIPE_LINE.match((line or "").strip()))
+
+
+def _pan_lines_from_multiline_export(blob: str) -> list[str]:
+    """Keep only PAN|… rows from multi-line checker / BIN-detail exports."""
+    out: list[str] = []
+    for ln in blob.replace("\r\n", "\n").split("\n"):
+        s = ln.strip()
+        if _is_pan_pipe_line(s):
+            out.append(s)
+    return out
+
+
+def bulk_paste_line_stats(blob: str, cards: list[str]) -> dict[str, int]:
+    raw_lines = len([ln for ln in blob.replace("\r\n", "\n").split("\n") if ln.strip()])
+    parsed = len(cards)
+    return {
+        "raw_non_empty_lines": raw_lines,
+        "parsed_cards": parsed,
+        "ignored_lines": max(0, raw_lines - parsed),
+    }
 
 
 def _split_stock_bulk_segments(blob: str) -> list[str]:
@@ -2462,7 +2488,14 @@ def _explode_segment_into_pan_records(segment: str) -> list[str]:
         return []
     ms = list(_PAN_RECORD_START.finditer(segment))
     if len(ms) <= 1:
-        return [segment]
+        s = segment.strip()
+        if _is_pan_pipe_line(s):
+            return [s]
+        if ms:
+            piece = segment[ms[0].start(1) :].strip()
+            if _is_pan_pipe_line(piece):
+                return [piece]
+        return []
     out: list[str] = []
     for i, m in enumerate(ms):
         start = m.start(1)
@@ -2475,10 +2508,18 @@ def _explode_segment_into_pan_records(segment: str) -> list[str]:
 
 def parse_stock_cards_bulk(blob: str) -> list[str]:
     """Flatten bulk /stock payload into individual card lines."""
+    blob = blob.replace("\r\n", "\n").strip()
+    if not blob:
+        return []
+    pans = _pan_lines_from_multiline_export(blob)
+    raw_lines = len([ln for ln in blob.split("\n") if ln.strip()])
+    if pans and raw_lines > len(pans):
+        if _BIN_DETAIL_BLOCK_MARK.search(blob) or raw_lines >= len(pans) * 2:
+            return pans
     rows: list[str] = []
     for seg in _split_stock_bulk_segments(blob):
         rows.extend(_explode_segment_into_pan_records(seg))
-    return rows
+    return [r.strip() for r in rows if _is_pan_pipe_line(r)]
 
 
 def _document_default_base_name() -> str:
@@ -3305,7 +3346,12 @@ def api_admin_stock_bulk():
             log_line=f"web stock-bulk +{len(cards)} @ ${price:.2f} base={base_sel} country={country}",
             uid=None,
         )
-    return jsonify({"ok": True, "added": added, "base": base_sel, "country": country})
+    stats = bulk_paste_line_stats(bulk, cards)
+    out: dict[str, Any] = {"ok": True, "added": added, "base": base_sel, "country": country}
+    if stats["ignored_lines"] > 0:
+        out["ignored_lines"] = stats["ignored_lines"]
+        out["raw_non_empty_lines"] = stats["raw_non_empty_lines"]
+    return jsonify(out)
 
 
 @app.post("/api/admin/stock-document/import")
@@ -5147,11 +5193,22 @@ async def _tg_stock_reply_added(
     price: float,
     base_sel: str,
     country_code: str,
+    *,
+    blob: str = "",
+    cards: list[str] | None = None,
 ) -> None:
     lbl = html.escape(stock_base_label(base_sel))
+    extra = ""
+    if blob and cards is not None:
+        stats = bulk_paste_line_stats(blob, cards)
+        if stats["ignored_lines"] > 0:
+            extra = (
+                f"\n<i>({stats['raw_non_empty_lines']} lines in paste; "
+                f"{stats['ignored_lines']} non-card lines skipped.)</i>\n"
+            )
     await msg.reply_text(
         f"✅ Added <b>{added}</b> card(s) at <code>${price:.2f}</code> → <b>{lbl}</b> "
-        f"(country <code>{html.escape(country_code)}</code>).\n\n"
+        f"(country <code>{html.escape(country_code)}</code>).{extra}\n"
         "If shop looks stale, hard refresh (Ctrl+F5) and verify website API points to the same backend.\n\n"
         "💡 <b>Next time (long lists):</b> <code>/stock &lt;price&gt;</code> → paste all parts "
         "(split messages are OK) → <code>/done</code> commits the <b>full</b> batch.",
@@ -5228,7 +5285,9 @@ async def _tg_stock_commit_blob(
         uid=uid,
     )
     _stock_batch_clear(context, uid)
-    await _tg_stock_reply_added(msg, added, price, base_sel, country_code)
+    await _tg_stock_reply_added(
+        msg, added, price, base_sel, country_code, blob=blob, cards=cards
+    )
 
 
 async def _tg_txt_commit_pending_with_price(
@@ -5528,9 +5587,17 @@ async def tg_stock_document_message(update, context) -> None:
         return
     if len(file_cards) > STOCK_BATCH_MAX:
         await msg.reply_text(
-            f"That file has {len(file_cards)} lines, above the max {STOCK_BATCH_MAX} per /done batch."
+            f"That file has {len(file_cards)} card line(s), above the max {STOCK_BATCH_MAX} per /done batch."
         )
         return
+
+    file_stats = bulk_paste_line_stats(file_text, file_cards)
+    skip_note = ""
+    if file_stats["ignored_lines"] > 0:
+        skip_note = (
+            f"\n<i>({file_stats['raw_non_empty_lines']} lines in file; "
+            f"{file_stats['ignored_lines']} header/BIN lines skipped.)</i>"
+        )
 
     txt_wizard = _stock_txt_wizard_get(context, chat_id=chat_id)
     caption = (getattr(msg, "caption", "") or "").strip()
@@ -5554,7 +5621,8 @@ async def tg_stock_document_message(update, context) -> None:
         if saved in known:
             _stock_txt_wizard_set(context, stage="await_price", chat_id=chat_id)
             await msg.reply_text(
-                f"📎 Received <code>{safe_name}</code> with <b>{len(file_cards)}</b> card line(s).\n\n"
+                f"📎 Received <code>{safe_name}</code> with <b>{len(file_cards)}</b> card line(s)."
+                f"{skip_note}\n\n"
                 "Now send amount as a number (example <code>2.25</code>) "
                 "or <code>/txt 2.25</code>.",
                 parse_mode="HTML",
@@ -5562,7 +5630,8 @@ async def tg_stock_document_message(update, context) -> None:
         else:
             _stock_txt_wizard_set(context, stage="await_base", chat_id=chat_id)
             await msg.reply_text(
-                f"📎 Received <code>{safe_name}</code> with <b>{len(file_cards)}</b> card line(s).\n\n"
+                f"📎 Received <code>{safe_name}</code> with <b>{len(file_cards)}</b> card line(s)."
+                f"{skip_note}\n\n"
                 "Step 2: choose base now (buttons) or send <code>/stockbase BASE_ID</code>.",
                 parse_mode="HTML",
                 reply_markup=stock_base_kb,

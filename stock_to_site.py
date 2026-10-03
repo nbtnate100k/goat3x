@@ -146,8 +146,18 @@ def _chunk_rows(rows: list[str], size: int) -> list[list[str]]:
 
 def _read_rows(path: Path) -> list[str]:
     text = path.read_text(encoding="utf-8", errors="replace")
-    rows = [line.strip() for line in text.replace("\r\n", "\n").split("\n") if line.strip()]
-    return rows
+    try:
+        import pluxo_backend as pb
+    except ImportError:
+        return [line.strip() for line in text.replace("\r\n", "\n").split("\n") if line.strip()]
+    cards = pb.parse_stock_cards_bulk(text)
+    raw = len([ln for ln in text.replace("\r\n", "\n").split("\n") if ln.strip()])
+    if raw > len(cards):
+        print(
+            f"NOTE: file has {raw} non-empty lines → {len(cards)} PAN| card line(s) "
+            f"({raw - len(cards)} header/BIN lines ignored)."
+        )
+    return cards
 
 
 def _login(api_base: str, username: str, password: str, webhook_secret: str) -> str:
