@@ -564,6 +564,43 @@ def _owner_tax_applies_to_base_unlocked(base_id: str) -> bool:
     return b not in VALID_STOCK_BASES
 
 
+def _register_custom_stock_base_unlocked(
+    bid: str,
+    label: str,
+    assign_admin: str | None = None,
+) -> tuple[bool, str | None]:
+    """Create or update a custom shop base. Caller must hold ``state_lock``."""
+    base_id = str(bid or "").strip().upper()
+    if not ADMIN_STOCK_BASE_NAME_RE.fullmatch(base_id):
+        return False, (
+            "Invalid base id. Use 3–32 chars, start with a letter, A–Z, 0–9, underscore "
+            "(example: VIP_USA_BASE)."
+        )
+    if base_id in VALID_STOCK_BASES:
+        return False, "That id is reserved for a built-in shop base."
+    raw_label = str(label or base_id).strip()[:48] or base_id
+    custom = _custom_stock_bases_map_unlocked()
+    created = base_id not in custom
+    cstore = state.setdefault("custom_stock_bases", {})
+    if not isinstance(cstore, dict):
+        cstore = {}
+        state["custom_stock_bases"] = cstore
+    cstore[base_id] = raw_label
+    if assign_admin:
+        u = norm_user(str(assign_admin))
+        if u:
+            state.setdefault("admin_stock_bases", {})[u] = base_id
+    return created, None
+
+
+def _reload_newbase_pending_from_disk() -> None:
+    _reload_persistent_keys_from_disk("telegram_newbase_pending")
+
+
+def _newbase_pending_active_unlocked(telegram_user_id: int) -> bool:
+    return _newbase_pending_is_set_unlocked(telegram_user_id)
+
+
 def _newbase_pending_set_unlocked(telegram_user_id: int) -> None:
     pend = state.setdefault("telegram_newbase_pending", {})
     if not isinstance(pend, dict):
@@ -5591,14 +5628,18 @@ async def _tg_finish_newbase(
     label: str,
     uid: int | None,
 ) -> None:
+    err: str | None = None
+    created = False
+    lbl = bid
     with state_lock:
         created, err = _register_custom_stock_base_unlocked(bid, label, assign_admin=None)
-        if err:
-            await msg.reply_text(err)
-            return
-        _action_log_unlocked(f"/newbase {bid} label={label[:32]}", uid=uid)
-        save_state()
-        lbl = stock_base_label(bid)
+        if not err:
+            _action_log_unlocked(f"/newbase {bid} label={label[:32]}", uid=uid)
+            save_state()
+            lbl = stock_base_label(bid)
+    if err:
+        await msg.reply_text(err)
+        return
     note = "created" if created else "updated"
     await msg.reply_text(
         f"✅ Shop base {note}: <b>{html.escape(lbl)}</b>\n"
@@ -5654,8 +5695,9 @@ async def tg_newbase_reply(update, context) -> None:
     msg = update.effective_message
     if not msg or not update.effective_user or not msg.text:
         return
+    _reload_newbase_pending_from_disk()
     with state_lock:
-        pending = _newbase_pending_is_set_unlocked(update.effective_user.id)
+        pending = _newbase_pending_active_unlocked(update.effective_user.id)
     if not pending and not context.user_data.get(NEWBASE_PENDING_KEY):
         return
     if not _is_staff(update.effective_user.id):
@@ -5718,6 +5760,22 @@ def _resolve_basepay_callback_id_unlocked(raw_id: str) -> str:
     return token
 
 
+def _viewbasepay_lines_text_unlocked(
+    stats_by_base: dict[str, dict[str, Any]],
+) -> str:
+    lines: list[str] = []
+    for item in _viewbasepay_list_items_unlocked(stats_by_base):
+        bid = str(item.get("id") or "").upper()
+        lbl = html.escape(str(item.get("label") or bid))
+        st = stats_by_base.get(bid) or {}
+        gross = float(st.get("revenue") or 0)
+        cnt = int(st.get("count") or 0)
+        lines.append(f"• {lbl} — <code>${gross:.2f}</code> ({cnt} sold)")
+    if not lines:
+        return "<i>No bases yet.</i>"
+    return "\n".join(lines)
+
+
 def _viewbasepay_menu_text_unlocked() -> tuple[str, Any, dict[str, Any]]:
     payload = _base_revenue_last_hours_unlocked(24.0)
     payload = _enrich_base_revenue_with_owner_tax_unlocked(payload)
@@ -5728,10 +5786,13 @@ def _viewbasepay_menu_text_unlocked() -> tuple[str, Any, dict[str, Any]]:
     }
     kb = _viewbasepay_keyboard_unlocked(stats_by_base)
     grand = float(payload.get("grand_revenue") or 0)
+    listing = _viewbasepay_lines_text_unlocked(stats_by_base)
     text = (
         "💵 <b>Base revenue</b> · last 24h (UTC)\n"
-        "Tap a base for <b>gross</b> sales (before owner tax).\n"
-        f"All bases total: <code>${grand:.2f}</code>\n"
+        "Gross sales before owner tax:\n\n"
+        f"{listing}\n\n"
+        f"<b>Total:</b> <code>${grand:.2f}</code>\n"
+        "Tap a button below for one base (Refresh updates live).\n"
         f"<i>Updated {html.escape(str(payload.get('generated_at_utc') or ''))}</i>"
     )
     if kb is None:
@@ -6243,8 +6304,12 @@ async def tg_stock_batch_message(update, context) -> None:
     if not msg or not update.effective_user or not msg.text:
         return
     uid = int(update.effective_user.id)
+    _reload_newbase_pending_from_disk()
+    if context.user_data.get(NEWBASE_PENDING_KEY):
+        await tg_newbase_reply(update, context)
+        return
     with state_lock:
-        pending_newbase = _newbase_pending_is_set_unlocked(uid)
+        pending_newbase = _newbase_pending_active_unlocked(uid)
     if pending_newbase:
         await tg_newbase_reply(update, context)
         return
@@ -6318,6 +6383,9 @@ async def tg_stock_batch_message(update, context) -> None:
             "<code>/stock &lt;price&gt;</code>, paste/send file parts, then <code>/done</code>.",
             parse_mode="HTML",
         )
+        return
+    if context.user_data.get(NEWBASE_PENDING_KEY):
+        await tg_newbase_reply(update, context)
         return
     if not sess:
         return
@@ -7823,6 +7891,13 @@ def run_telegram_bot() -> None:
             import traceback
 
             traceback.print_exception(type(err), err, err.__traceback__)
+        try:
+            if isinstance(update, Update) and update.effective_message:
+                await update.effective_message.reply_text(
+                    "Bot error — try again or /cancel. If this keeps happening, check server logs."
+                )
+        except Exception:
+            pass
 
     http_request = HTTPXRequest(
         connection_pool_size=8,
@@ -7881,8 +7956,9 @@ def run_telegram_bot() -> None:
                 return False
             if msg.text.strip().startswith("/"):
                 return False
+            _reload_newbase_pending_from_disk()
             with state_lock:
-                return _newbase_pending_is_set_unlocked(user.id)
+                return _newbase_pending_active_unlocked(user.id)
 
     application.add_handler(
         MessageHandler(
