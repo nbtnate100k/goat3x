@@ -4099,8 +4099,7 @@
             display: none;
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.8);
-            backdrop-filter: blur(4px);
+            background: rgba(0,0,0,0.88);
             z-index: 1000;
             justify-content: center;
             align-items: center;
@@ -5577,8 +5576,7 @@
             inset: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.72);
-            backdrop-filter: blur(4px);
+            background: rgba(0, 0, 0, 0.82);
             z-index: 200000;
             display: flex;
             align-items: center;
@@ -5786,11 +5784,116 @@
         }
 
         .funds-modal-actions {
+            margin-top: 16px;
+            padding-top: 4px;
+        }
+
+        #fundsStep2 .funds-modal-actions {
             position: sticky;
             bottom: 0;
-            margin-top: 16px;
             padding-top: 12px;
-            background: linear-gradient(180deg, transparent 0%, var(--black-light) 35%);
+            padding-bottom: 4px;
+            background: linear-gradient(180deg, transparent 0%, var(--black-light) 40%);
+        }
+
+        #topUpAfterPaidPanel .funds-modal-actions {
+            position: static;
+            background: transparent;
+            margin-top: 8px;
+        }
+
+        .funds-step3-proof-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--goat-copy);
+            font-size: 13px;
+        }
+
+        .funds-step3-proof-hint {
+            font-size: 13px;
+            color: var(--gray);
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .funds-step3-proof-hint code {
+            font-size: 11px;
+            word-break: break-all;
+            color: var(--blue-light);
+        }
+
+        #topUpAfterPaidPanel .input-field {
+            margin-bottom: 14px;
+        }
+
+        #fundsStep3PrimaryActions {
+            margin-top: 8px;
+        }
+
+        .funds-display-box {
+            padding: 14px 16px;
+            background: var(--black-lighter);
+            border-radius: 8px;
+            font-weight: 600;
+            color: var(--blue-light);
+            font-size: 15px;
+        }
+
+        .funds-display-box--amount {
+            font-size: 22px;
+        }
+
+        #paymentInstructions.payment-instructions {
+            background: var(--black-lighter);
+            border-radius: 8px;
+            padding: 14px 16px;
+            margin-bottom: 16px;
+        }
+
+        .payment-instructions-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--blue);
+            font-size: 14px;
+        }
+
+        .payment-instructions-body {
+            font-size: 14px;
+            color: var(--gray);
+            line-height: 1.55;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .funds-topup-warning {
+            background: rgba(239, 68, 68, 0.12);
+            border: 1px solid rgba(239, 68, 68, 0.45);
+            border-radius: 10px;
+            padding: 14px 16px;
+            margin-bottom: 14px;
+        }
+
+        .funds-topup-warning strong {
+            color: #fca5a5;
+        }
+
+        .funds-topup-warning p {
+            margin: 8px 0 0;
+            font-size: 13px;
+            color: var(--gray);
+            line-height: 1.55;
+        }
+
+        .btn-secondary-plain {
+            background: #27272a;
+            border: 1px solid #3f3f46;
+            color: #e4e4e7;
+            border-radius: 8px;
+            padding: 12px;
+            font-family: inherit;
+            font-size: 15px;
+            cursor: pointer;
         }
 
         @keyframes slideInRight {
@@ -7525,7 +7628,6 @@
                 padding: 20px 16px 24px;
             }
 
-            #fundsModal .selectedAmountDisplay,
             #selectedAmountDisplay {
                 font-size: 20px !important;
             }
@@ -8653,42 +8755,42 @@
                 <!-- Step 3: Payment Details Form -->
                 <div id="fundsStep3" class="funds-step" style="display: none;">
                     <h2 class="funds-step-title">Payment Details</h2>
-                    <form onsubmit="event.preventDefault(); markAsPaid(); return false;">
+                    <form id="fundsStep3Form" onsubmit="event.preventDefault(); return false;">
                         <input type="hidden" id="payMethod" value="">
                         <input type="hidden" id="fundAmt" value="">
-                        <div class="form-group">
-                            <label>Selected Method</label>
-                            <div id="selectedMethodDisplay" style="padding: 16px; background: var(--black-lighter); border-radius: 8px; font-weight: 600; color: var(--blue-light);"></div>
+                        <div id="fundsStep3Main">
+                            <div class="form-group">
+                                <label>Selected Method</label>
+                                <div id="selectedMethodDisplay" class="funds-display-box"></div>
+                            </div>
+                            <div class="form-group">
+                                <label>Selected Amount</label>
+                                <div id="selectedAmountDisplay" class="funds-display-box funds-display-box--amount"></div>
+                            </div>
+                            <div class="form-group">
+                                <label>Bonus Code (Optional)</label>
+                                <input type="text" class="input-field" id="bonusCode" placeholder="Enter code">
+                            </div>
+                            <div class="payment-instructions" id="paymentInstructions">
+                                <div class="payment-instructions-title">Payment Instructions:</div>
+                                <div id="instructionText" class="payment-instructions-body"></div>
+                            </div>
+                            <div class="funds-modal-actions" id="fundsStep3PrimaryActions">
+                                <button type="button" class="btn btn-primary" id="btnIHavePaidCrypto" style="width:100%; background: linear-gradient(135deg, #4b5563, #3f3f46); font-size: 17px; font-weight: 700; padding: 14px;" onclick="markAsPaid()">✓ I Have Paid</button>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label>Selected Amount</label>
-                            <div id="selectedAmountDisplay" style="padding: 16px; background: var(--black-lighter); border-radius: 8px; font-weight: 600; color: var(--blue-light); font-size: 24px;"></div>
-                        </div>
-                        <div class="form-group">
-                            <label>Bonus Code (Optional)</label>
-                            <input type="text" class="input-field" id="bonusCode" placeholder="Enter code">
-                        </div>
-                        <div class="payment-instructions" id="paymentInstructions" style="background: var(--black-lighter); border-radius: 8px; padding: 16px; margin-bottom: 20px;">
-                            <div style="font-weight: 600; margin-bottom: 8px; color: var(--blue);">Payment Instructions:</div>
-                            <div id="instructionText" style="font-size: 14px; color: var(--gray); line-height: 1.5;"></div>
-                        </div>
-                        <div id="topUpAfterPaidPanel" style="display: none; margin-bottom: 18px;">
-                            <div style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.45); border-radius: 10px; padding: 14px 16px; margin-bottom: 14px;">
-                                <strong style="color: #fca5a5;">Important</strong>
-                                <p style="margin: 8px 0 0; font-size: 13px; color: var(--gray); line-height: 1.55;">
+                        <div id="topUpAfterPaidPanel" style="display: none;">
+                            <div class="funds-topup-warning">
+                                <strong>Important</strong>
+                                <p>
                                     Too many bogus submissions can flag abuse and may lead to your <strong>account or IP being restricted or banned from this site.</strong>
                                 </p>
                             </div>
-                            <label style="display: block; font-weight: 600; margin-bottom: 8px; color: var(--text);">Blockchain confirmation link</label>
-                            <p style="font-size: 13px; color: var(--gray); margin-bottom: 8px;">Paste your public explorer link showing the transaction (BTC example):<br><code style="font-size: 11px; word-break: break-all; color: var(--blue-light);">https://mempool.space/tx/...</code></p>
-                            <input type="url" class="input-field" id="cryptoConfirmationUrl" placeholder="https://mempool.space/tx/..." autocomplete="off" inputmode="url" style="margin-bottom: 12px;">
-                            <div class="funds-modal-actions">
-                                <button type="button" class="btn btn-primary" id="btnSubmitTopUpProof" style="width:100%; background: linear-gradient(135deg, #3f3f46, #18181b); font-size: 17px; font-weight: 700; padding: 14px;" onclick="submitCryptoTopUpRequest()">Submit for verification</button>
-                                <button type="button" class="btn" style="width:100%; margin-top: 10px; opacity: 0.85;" onclick="hideTopUpAfterPaidPanel()">Back</button>
-                            </div>
-                        </div>
-                        <div class="funds-modal-actions">
-                            <button type="button" class="btn btn-primary" id="btnIHavePaidCrypto" style="width:100%; background: linear-gradient(135deg, #4b5563, #3f3f46); font-size: 17px; font-weight: 700; padding: 14px;" onclick="markAsPaid()">✓ I Have Paid</button>
+                            <label class="funds-step3-proof-label" for="cryptoConfirmationUrl">Blockchain confirmation link</label>
+                            <p class="funds-step3-proof-hint">Paste your public explorer link showing the transaction (BTC example):<br><code>https://mempool.space/tx/…</code></p>
+                            <input type="url" class="input-field" id="cryptoConfirmationUrl" placeholder="https://mempool.space/tx/..." autocomplete="off" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false">
+                            <button type="button" class="btn btn-primary" id="btnSubmitTopUpProof" style="width:100%; margin-top: 4px; background: linear-gradient(135deg, #3f3f46, #18181b); font-size: 16px; font-weight: 700; padding: 14px;" onclick="submitCryptoTopUpRequest()">Submit for verification</button>
+                            <button type="button" class="btn btn-secondary-plain" style="width:100%; margin-top: 10px;" onclick="hideTopUpAfterPaidPanel()">Back</button>
                         </div>
                     </form>
                 </div>
@@ -13401,11 +13503,9 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
 
         function hideTopUpAfterPaidPanel() {
             var panel = document.getElementById('topUpAfterPaidPanel');
-            var btn = document.getElementById('btnIHavePaidCrypto');
-            var instr = document.getElementById('paymentInstructions');
+            var main = document.getElementById('fundsStep3Main');
             if (panel) panel.style.display = 'none';
-            if (btn) btn.style.display = '';
-            if (instr) instr.style.display = '';
+            if (main) main.style.display = '';
             var inp = document.getElementById('cryptoConfirmationUrl');
             if (inp) inp.value = '';
         }
@@ -13438,18 +13538,26 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
             }
             
             var panel = document.getElementById('topUpAfterPaidPanel');
-            var btn = document.getElementById('btnIHavePaidCrypto');
-            var instr = document.getElementById('paymentInstructions');
-            if (panel && btn) {
+            var main = document.getElementById('fundsStep3Main');
+            if (panel && main) {
+                main.style.display = 'none';
                 panel.style.display = 'block';
-                btn.style.display = 'none';
-                if (instr) instr.style.display = 'none';
                 var inp = document.getElementById('cryptoConfirmationUrl');
-                if (inp) { inp.value = ''; setTimeout(function () { inp.focus(); }, 100); }
+                if (inp) {
+                    inp.value = '';
+                    setTimeout(function () {
+                        try {
+                            inp.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                        } catch (_) {}
+                    }, 120);
+                }
             }
         }
 
+        var _topUpSubmitInFlight = false;
+
         async function submitCryptoTopUpRequest() {
+            if (_topUpSubmitInFlight) return;
             if (!pluxoGetAuthToken() || !userData || !userData.username) {
                 showAnimatedPopup('Login required', 'Sign in before submitting your payment link.', 'error');
                 return;
@@ -13475,7 +13583,8 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
                 return;
             }
             var btn = document.getElementById('btnSubmitTopUpProof');
-            if (btn) { btn.disabled = true; btn.style.opacity = '0.65'; }
+            _topUpSubmitInFlight = true;
+            if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
             try {
                 var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
                 var timer = ctrl ? setTimeout(function () { try { ctrl.abort(); } catch (_) {} }, 45000) : null;
@@ -13495,30 +13604,33 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
                 if (!r.ok || !d.ok) {
                     throw new Error(d.error || ('Request failed (' + r.status + ')'));
                 }
-                hideTopUpAfterPaidPanel();
-                showTopUpPendingAnimation();
                 closeFundsModal();
+                showAnimatedPopup(
+                    'Submitted for review',
+                    'Staff will verify your explorer link on Telegram. Once accepted, your balance updates automatically — refresh if needed.',
+                    'success'
+                );
             } catch (err) {
-                showAnimatedPopup('Submit failed', (err && err.message) ? err.message : String(err), 'error');
+                var msg = (err && err.message) ? err.message : String(err);
+                if (msg.indexOf('abort') !== -1 || msg.indexOf('Abort') !== -1) {
+                    msg = 'Request timed out. Check your connection and try again.';
+                }
+                showAnimatedPopup('Submit failed', msg, 'error');
             } finally {
-                if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+                _topUpSubmitInFlight = false;
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = 'Submit for verification';
+                }
             }
         }
 
         function showTopUpPendingAnimation() {
-            var overlay = document.createElement('div');
-            overlay.className = 'animated-popup-overlay';
-            overlay.style.display = 'flex';
-            overlay.innerHTML = '<div class="animated-popup success" style="max-width: 520px;">' +
-                '<div class="popup-icon" style="font-size: 72px;">⏳</div>' +
-                '<div class="popup-title" style="font-size: 24px;">Submitted for review</div>' +
-                '<div class="popup-message" style="font-size: 15px; line-height: 1.7; padding: 0 16px;">' +
-                'Staff will verify your explorer link on Telegram. Once your top-up is <strong>accepted</strong>, ' +
-                'your balance updates automatically — refresh the page or revisit your profile if needed.' +
-                '</div>' +
-                '<div style="margin-top: 20px;"><button type="button" class="popup-button" ' +
-                'onclick="this.closest(\'.animated-popup-overlay\').remove();">Close</button></div></div>';
-            document.body.appendChild(overlay);
+            showAnimatedPopup(
+                'Submitted for review',
+                'Staff will verify your explorer link on Telegram. Once accepted, your balance updates automatically — refresh if needed.',
+                'success'
+            );
         }
 
         function showPaidAnimation() {
@@ -13544,30 +13656,8 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
                 </div>
             `;
             document.body.appendChild(overlay);
-            
-            // Add confetti effect
-            createConfetti();
-        }
-
-        function createConfetti() {
-            const colors = ['#6b7280', '#4b5563', '#f59e0b', '#ef4444', '#71717a'];
-            for (let i = 0; i < 50; i++) {
-                setTimeout(() => {
-                    const confetti = document.createElement('div');
-                    confetti.style.position = 'fixed';
-                    confetti.style.width = '10px';
-                    confetti.style.height = '10px';
-                    confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-                    confetti.style.left = Math.random() * 100 + '%';
-                    confetti.style.top = '-10px';
-                    confetti.style.borderRadius = '50%';
-                    confetti.style.pointerEvents = 'none';
-                    confetti.style.zIndex = '10001';
-                    confetti.style.animation = `confettiFall ${2 + Math.random() * 2}s linear forwards`;
-                    document.body.appendChild(confetti);
-                    
-                    setTimeout(() => confetti.remove(), 4000);
-                }, i * 50);
+            if (!window.matchMedia('(max-width: 768px)').matches) {
+                createConfetti();
             }
         }
 
