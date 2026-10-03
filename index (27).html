@@ -2247,40 +2247,67 @@
         }
 
         @media (max-width: 1024px) {
-            .dashboard-body {
-                flex-direction: column;
+            .dashboard-page.sidebar-rail-collapsed #dashboardSidebar {
+                transform: translateX(-105%);
+                width: min(288px, 88vw) !important;
+                min-width: 0 !important;
+                opacity: 1 !important;
+                pointer-events: none !important;
+                overflow: hidden;
+                border-right: 1px solid var(--gray-border) !important;
             }
 
             .sidebar {
-                width: 100%;
-                flex-direction: row;
-                overflow-x: auto;
-                align-items: flex-start;
+                position: fixed;
+                z-index: 10050;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                width: min(288px, 88vw);
+                flex-direction: column;
+                transform: translateX(0);
+                transition: transform 0.28s ease;
+                box-shadow: 8px 0 32px rgba(0, 0, 0, 0.45);
+            }
+
+            .dashboard-page:not(.sidebar-rail-collapsed) .sidebar {
+                pointer-events: auto;
+            }
+
+            .dashboard-page:not(.sidebar-rail-collapsed)::before {
+                content: '';
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.55);
+                z-index: 10040;
             }
 
             .sidebar-brand-row,
             .sidebar-footer {
-                display: none;
+                display: flex;
             }
 
             .sidebar-scroll {
-                display: flex;
-                flex-wrap: wrap;
-                padding: 12px;
-                flex: none;
+                display: block;
+                flex-wrap: nowrap;
+                padding: 14px 0 88px;
                 width: 100%;
                 max-height: none;
             }
 
             .sidebar-section-label {
-                width: 100%;
-                flex-basis: 100%;
-                padding: 10px 8px 4px;
+                width: auto;
+                flex-basis: auto;
+                padding: 14px 20px 6px;
             }
 
             .sidebar-link {
-                width: auto;
-                flex: 0 0 auto;
+                width: calc(100% - 20px);
+                flex: none;
+            }
+
+            .dashboard-stage {
+                width: 100%;
             }
         }
 
@@ -4194,10 +4221,10 @@
         .filter-select {
             width: 100%;
             padding: 12px 14px;
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
+            background: var(--black-lighter);
+            border: 1px solid var(--gray-border);
             border-radius: 6px;
-            color: #333;
+            color: var(--white);
             font-size: 14px;
             font-family: var(--goat-terminal), ui-monospace, monospace;
             cursor: pointer;
@@ -5533,11 +5560,26 @@
         }
 
         /* Animated Popup System */
-        .animated-popup-overlay#vipTelegramModal {
-            z-index: 10050;
-        }
+        .animated-popup-overlay {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.72);
+            backdrop-filter: blur(4px);
+            z-index: 200000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            box-sizing: border-box;
             opacity: 0;
-            animation: fadeIn 0.3s ease forwards;
+            animation: fadeIn 0.25s ease forwards;
+            pointer-events: auto;
+        }
+
+        .animated-popup-overlay#vipTelegramModal {
+            z-index: 200010;
         }
 
         .animated-popup {
@@ -5633,6 +5675,8 @@
             border-color: #71717a;
             color: var(--white);
         }
+
+        .popup-button {
             background: var(--blue);
             color: var(--white);
             border: none;
@@ -5642,6 +5686,7 @@
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s;
+            font-family: var(--goat-terminal), ui-monospace, monospace;
         }
 
         .popup-button:hover {
@@ -7319,6 +7364,113 @@
                 text-align: right;
             }
         }
+
+        /* ==================== RESPONSIVE — phones & tablets ==================== */
+        @media (max-width: 768px) {
+            .dashboard-main-pane {
+                padding: 12px 14px 24px;
+            }
+
+            .top-bar-dash {
+                padding: 8px 12px !important;
+                gap: 10px !important;
+            }
+
+            .top-dash-right .top-dash-link:not(.cart-top-link) {
+                display: none;
+            }
+
+            .goatys-wordmark--top {
+                font-size: 11px;
+                letter-spacing: 0.22em;
+            }
+
+            .top-user-elide {
+                max-width: 72px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                display: inline-block;
+                vertical-align: bottom;
+            }
+
+            #page-products .page-header.products-market-header h1 {
+                font-size: 20px;
+            }
+
+            #page-products .products-market-header p {
+                font-size: 11px !important;
+            }
+
+            .cards-market-toolbar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            #cardsQuickSearch {
+                min-width: 0;
+                width: 100%;
+            }
+
+            .cards-toolbar-right {
+                width: 100%;
+            }
+
+            #pluxoFilterBaseSelect.cards-base-mini {
+                flex: 1;
+                min-width: 0;
+            }
+
+            .results-table {
+                min-width: 880px;
+                font-size: 12px;
+            }
+
+            .results-table th,
+            .results-table td {
+                padding: 10px 8px;
+            }
+
+            .animated-popup {
+                padding: 22px 18px;
+                max-width: min(360px, 100%);
+            }
+
+            .popup-icon {
+                font-size: 40px;
+                margin-bottom: 12px;
+            }
+
+            .popup-title {
+                font-size: 18px;
+            }
+
+            .popup-message {
+                font-size: 14px;
+                margin-bottom: 18px;
+            }
+
+            .popup-button {
+                width: 100%;
+                padding: 12px 16px;
+            }
+
+            .pagination-container {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .top-balance-pill {
+                padding: 5px 8px;
+                font-size: 10px;
+            }
+
+            .sidebar {
+                width: min(100vw, 300px) !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -8481,8 +8633,8 @@
         </div>
 
         <!-- Animated Popup Modal -->
-        <div class="animated-popup-overlay" id="animatedPopupOverlay" style="display: none;">
-            <div class="animated-popup" id="animatedPopup">
+        <div class="animated-popup-overlay" id="animatedPopupOverlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="popupTitle" onclick="if(event.target===this)closeAnimatedPopup()">
+            <div class="animated-popup" id="animatedPopup" onclick="event.stopPropagation()">
                 <div class="popup-icon" id="popupIcon">✨</div>
                 <div class="popup-title" id="popupTitle">Title</div>
                 <div class="popup-message" id="popupMessage">Message</div>
@@ -9644,6 +9796,28 @@
                     maybeShowVipTelegramInviteModal();
                 }
             }, 2600);
+        }
+
+        function pluxoIsMobileDash() {
+            return window.matchMedia('(max-width: 1024px)').matches;
+        }
+
+        function pluxoCloseMobileSidebar() {
+            var root = document.getElementById('dashboardPage');
+            var btn = document.getElementById('dashboardSidebarToggle');
+            if (!root) return;
+            root.classList.add('sidebar-rail-collapsed');
+            if (btn) btn.setAttribute('aria-expanded', 'false');
+        }
+
+        function pluxoInitMobileDashboardShell() {
+            var root = document.getElementById('dashboardPage');
+            if (!root) return;
+            if (pluxoIsMobileDash()) {
+                root.classList.add('sidebar-rail-collapsed');
+            } else {
+                root.classList.remove('sidebar-rail-collapsed');
+            }
         }
 
         function toggleDashboardSidebar() {
@@ -12886,6 +13060,7 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
         updateTime();
 
         function showPage(name, el) {
+            if (typeof pluxoCloseMobileSidebar === 'function') pluxoCloseMobileSidebar();
             stopGamePolling('admin-dice');
             stopGamePolling('admin-blackjack');
             stopTicketsPagePoll();
