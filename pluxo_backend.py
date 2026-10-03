@@ -22,7 +22,7 @@ import time
 import urllib.error
 import urllib.request
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -71,6 +71,19 @@ def resolve_index_html() -> Path | None:
 TOPUPS_PENDING_DIR = DATA_DIR / "topups_pending"
 WEBHOOK_SECRET = os.environ.get("PLUXO_WEBHOOK_SECRET", "pluxo_secret_2024")
 AUTH_SECRET_KEY = os.environ.get("AUTH_SECRET_KEY", WEBHOOK_SECRET + "-pluxo-auth-v2")
+
+
+def _auth_token_max_age_seconds() -> int:
+    try:
+        sec = int(os.environ.get("AUTH_TOKEN_MAX_AGE_SECONDS", "604800").strip())
+    except ValueError:
+        sec = 604800
+    return max(900, min(2_592_000, sec))
+
+
+# How long a web sign-in stays valid. 7 days by default so a phone browser
+# reload does not drop the session mid-checkout.
+AUTH_TOKEN_MAX_AGE_SECONDS = _auth_token_max_age_seconds()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 # GOATYS.CC Telegram folder (add-list); override via env on deploy if the link rotates.
 _GOATYS_TG_CHAT_LIST_RAW = os.environ.get(
@@ -263,10 +276,14 @@ def _site_owner_username_norm() -> str | None:
     return norm_user(raw) if raw else None
 
 
-def can_skip_custom_stock_base(username: str) -> bool:
-    """Site owner may pick any known base on web upload without pre-selecting one."""
+def is_site_owner_username(username: str) -> bool:
     so = _site_owner_username_norm()
     return bool(so and norm_user(username) == so)
+
+
+def can_skip_custom_stock_base(username: str) -> bool:
+    """Site owner may pick any known base on web upload without pre-selecting one."""
+    return is_site_owner_username(username)
 
 
 def normalize_stock_upload_country(code: str) -> str:
@@ -3650,6 +3667,7 @@ def api_signup():
             "ok": True,
             "success": True,
             "token": token,
+            "auth_max_age_seconds": AUTH_TOKEN_MAX_AGE_SECONDS,
             "username": username,
             "balance": bal,
             "totalRecharge": tr,
@@ -3688,6 +3706,7 @@ def api_auth_login():
         {
             "success": True,
             "token": token,
+            "auth_max_age_seconds": AUTH_TOKEN_MAX_AGE_SECONDS,
             "username": username,
             "balance": bal,
             "totalRecharge": tr,
@@ -3716,6 +3735,7 @@ def api_auth_me():
             {
                 "success": True,
                 "username": au,
+                "auth_max_age_seconds": AUTH_TOKEN_MAX_AGE_SECONDS,
                 "balance": float(rec["balance"]),
                 "totalRecharge": float(rec.get("totalRecharge", 0)),
                 "is_site_admin": admin_flag,
@@ -7812,7 +7832,7 @@ def run_telegram_bot() -> None:
     if not TELEGRAM_BOT_TOKEN:
         print("TELEGRAM_BOT_TOKEN not set - skipping Telegram bot.")
         return
-    from telegram import BotCommand
+    from telegram import BotCommand, Update
     from telegram.error import Conflict, TimedOut
     from telegram.ext import (
         Application,
