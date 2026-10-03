@@ -5896,6 +5896,57 @@
             cursor: pointer;
         }
 
+        .topup-submit-loading,
+        .topup-submit-success {
+            text-align: center;
+            padding: 28px 12px 20px;
+        }
+
+        .topup-inline-spinner {
+            width: 44px;
+            height: 44px;
+            margin: 0 auto 16px;
+            border: 3px solid #3f3f46;
+            border-top-color: #a1a1aa;
+            border-radius: 50%;
+            animation: topupSpin 0.85s linear infinite;
+        }
+
+        @keyframes topupSpin {
+            to { transform: rotate(360deg); }
+        }
+
+        .topup-submit-loading p,
+        .topup-submit-success p {
+            color: var(--gray);
+            font-size: 14px;
+            line-height: 1.55;
+            margin: 0;
+        }
+
+        .topup-submit-success h3 {
+            font-family: var(--goat-terminal), ui-monospace, monospace;
+            font-size: 18px;
+            color: #e4e4e7;
+            margin: 0 0 10px;
+        }
+
+        .topup-submit-error {
+            display: none;
+            margin: 0 0 12px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            background: rgba(239, 68, 68, 0.12);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            color: #fca5a5;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .topup-submit-error.visible {
+            display: block;
+        }
+
         @keyframes slideInRight {
             from {
                 opacity: 0;
@@ -8780,17 +8831,28 @@
                             </div>
                         </div>
                         <div id="topUpAfterPaidPanel" style="display: none;">
-                            <div class="funds-topup-warning">
-                                <strong>Important</strong>
-                                <p>
-                                    Too many bogus submissions can flag abuse and may lead to your <strong>account or IP being restricted or banned from this site.</strong>
-                                </p>
+                            <div id="topUpSubmitLoading" class="topup-submit-loading" hidden>
+                                <div class="topup-inline-spinner" aria-hidden="true"></div>
+                                <p>Sending confirmation…</p>
                             </div>
-                            <label class="funds-step3-proof-label" for="cryptoConfirmationUrl">Blockchain confirmation link</label>
-                            <p class="funds-step3-proof-hint">Paste your public explorer link showing the transaction (BTC example):<br><code>https://mempool.space/tx/…</code></p>
-                            <input type="url" class="input-field" id="cryptoConfirmationUrl" placeholder="https://mempool.space/tx/..." autocomplete="off" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false">
-                            <button type="button" class="btn btn-primary" id="btnSubmitTopUpProof" style="width:100%; margin-top: 4px; background: linear-gradient(135deg, #3f3f46, #18181b); font-size: 16px; font-weight: 700; padding: 14px;" onclick="submitCryptoTopUpRequest()">Submit for verification</button>
-                            <button type="button" class="btn btn-secondary-plain" style="width:100%; margin-top: 10px;" onclick="hideTopUpAfterPaidPanel()">Back</button>
+                            <div id="topUpSubmitSuccess" class="topup-submit-success" hidden>
+                                <h3>Confirmation sent</h3>
+                                <p>Please wait <strong>5–15 minutes</strong> while staff verifies your payment on Telegram. Your balance updates after approval.</p>
+                            </div>
+                            <div id="topUpProofFormFields">
+                                <div id="topUpSubmitError" class="topup-submit-error" role="alert"></div>
+                                <div class="funds-topup-warning">
+                                    <strong>Important</strong>
+                                    <p>
+                                        Too many bogus submissions can flag abuse and may lead to your <strong>account or IP being restricted or banned from this site.</strong>
+                                    </p>
+                                </div>
+                                <label class="funds-step3-proof-label" for="cryptoConfirmationUrl">Blockchain confirmation link</label>
+                                <p class="funds-step3-proof-hint">Paste your public explorer link showing the transaction (BTC example):<br><code>https://mempool.space/tx/…</code></p>
+                                <input type="url" class="input-field" id="cryptoConfirmationUrl" placeholder="https://mempool.space/tx/..." autocomplete="off" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false">
+                                <button type="button" class="btn btn-primary" id="btnSubmitTopUpProof" style="width:100%; margin-top: 4px; background: linear-gradient(135deg, #3f3f46, #18181b); font-size: 16px; font-weight: 700; padding: 14px;" onclick="submitCryptoTopUpRequest()">Submit for verification</button>
+                                <button type="button" class="btn btn-secondary-plain" style="width:100%; margin-top: 10px;" onclick="hideTopUpAfterPaidPanel()">Back</button>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -12468,13 +12530,14 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
         }
 
         function createConfetti() {
+            if (window.matchMedia('(max-width: 768px)').matches) return;
             const confettiContainer = document.createElement('div');
             confettiContainer.className = 'confetti-container';
             document.body.appendChild(confettiContainer);
             
             const colors = ['#71717a', '#9ca3af', '#71717a', '#f59e0b', '#ef4444', '#ffffff'];
             
-            for (let i = 0; i < 50; i++) {
+            for (let i = 0; i < 24; i++) {
                 const confetti = document.createElement('div');
                 confetti.className = 'confetti-piece';
                 confetti.style.left = Math.random() * 100 + '%';
@@ -13501,11 +13564,62 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
             instructionText.textContent = instructions[method] || 'Please complete the payment.';
         }
 
+        function resetTopUpSubmitUi() {
+            var loading = document.getElementById('topUpSubmitLoading');
+            var success = document.getElementById('topUpSubmitSuccess');
+            var fields = document.getElementById('topUpProofFormFields');
+            var err = document.getElementById('topUpSubmitError');
+            var btn = document.getElementById('btnSubmitTopUpProof');
+            if (loading) loading.hidden = true;
+            if (success) success.hidden = true;
+            if (fields) fields.style.display = '';
+            if (err) {
+                err.textContent = '';
+                err.classList.remove('visible');
+            }
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = 'Submit for verification';
+            }
+            _topUpSubmitInFlight = false;
+        }
+
+        function setTopUpInlineError(msg) {
+            var err = document.getElementById('topUpSubmitError');
+            if (!err) {
+                showAnimatedPopup('Error', msg, 'error');
+                return;
+            }
+            err.textContent = msg;
+            err.classList.add('visible');
+        }
+
+        function showTopUpSubmitLoadingState() {
+            var loading = document.getElementById('topUpSubmitLoading');
+            var success = document.getElementById('topUpSubmitSuccess');
+            var fields = document.getElementById('topUpProofFormFields');
+            var err = document.getElementById('topUpSubmitError');
+            if (err) err.classList.remove('visible');
+            if (fields) fields.style.display = 'none';
+            if (success) success.hidden = true;
+            if (loading) loading.hidden = false;
+        }
+
+        function showTopUpSubmitSuccessState() {
+            var loading = document.getElementById('topUpSubmitLoading');
+            var success = document.getElementById('topUpSubmitSuccess');
+            var fields = document.getElementById('topUpProofFormFields');
+            if (loading) loading.hidden = true;
+            if (fields) fields.style.display = 'none';
+            if (success) success.hidden = false;
+        }
+
         function hideTopUpAfterPaidPanel() {
             var panel = document.getElementById('topUpAfterPaidPanel');
             var main = document.getElementById('fundsStep3Main');
             if (panel) panel.style.display = 'none';
             if (main) main.style.display = '';
+            resetTopUpSubmitUi();
             var inp = document.getElementById('cryptoConfirmationUrl');
             if (inp) inp.value = '';
         }
@@ -13556,10 +13670,10 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
 
         var _topUpSubmitInFlight = false;
 
-        async function submitCryptoTopUpRequest() {
+        function submitCryptoTopUpRequest() {
             if (_topUpSubmitInFlight) return;
             if (!pluxoGetAuthToken() || !userData || !userData.username) {
-                showAnimatedPopup('Login required', 'Sign in before submitting your payment link.', 'error');
+                setTopUpInlineError('Sign in before submitting your payment link.');
                 return;
             }
             var paymentMethod = document.getElementById('payMethod').value;
@@ -13567,62 +13681,59 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
             var confirmation_url = (document.getElementById('cryptoConfirmationUrl') || {}).value || '';
             
             if (!paymentMethod || (paymentMethod !== 'btc' && paymentMethod !== 'ltc')) {
-                showAnimatedPopup('Error', 'Please select a payment method', 'error');
+                setTopUpInlineError('Please select a payment method.');
                 return;
             }
             if (!amt || amt < 10) {
-                showAnimatedPopup('Error', 'Please select an amount (minimum $10)', 'error');
+                setTopUpInlineError('Please select an amount (minimum $10).');
                 return;
             }
             if (!isExplorerTxHttpsUrl(confirmation_url)) {
-                showAnimatedPopup(
-                    'Invalid link',
-                    'Paste a full https explorer URL that includes the transaction path, e.g. https://mempool.space/tx/…',
-                    'error'
-                );
+                setTopUpInlineError('Paste a full https explorer URL with /tx/ in the path, e.g. https://mempool.space/tx/…');
                 return;
             }
-            var btn = document.getElementById('btnSubmitTopUpProof');
             _topUpSubmitInFlight = true;
-            if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
-            try {
-                var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-                var timer = ctrl ? setTimeout(function () { try { ctrl.abort(); } catch (_) {} }, 45000) : null;
-                var r = await fetch(BOT_WEBHOOK_URL + '/api/topup/submit', {
-                    method: 'POST',
-                    headers: pluxoAuthHeaders(),
-                    signal: ctrl ? ctrl.signal : undefined,
-                    body: JSON.stringify({
-                        username: String(userData.username).toLowerCase().trim(),
-                        amount_usd: amt,
-                        method: paymentMethod,
-                        confirmation_url: confirmation_url.trim()
-                    })
-                });
+            showTopUpSubmitLoadingState();
+            var payload = {
+                username: String(userData.username).toLowerCase().trim(),
+                amount_usd: amt,
+                method: paymentMethod,
+                confirmation_url: confirmation_url.trim()
+            };
+            var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+            var timer = ctrl ? setTimeout(function () { try { ctrl.abort(); } catch (_) {} }, 28000) : null;
+            fetch(BOT_WEBHOOK_URL + '/api/topup/submit', {
+                method: 'POST',
+                headers: pluxoAuthHeaders(),
+                signal: ctrl ? ctrl.signal : undefined,
+                body: JSON.stringify(payload)
+            }).then(function (r) {
                 if (timer) clearTimeout(timer);
-                var d = await r.json().catch(function () { return {}; });
-                if (!r.ok || !d.ok) {
-                    throw new Error(d.error || ('Request failed (' + r.status + ')'));
-                }
-                closeFundsModal();
-                showAnimatedPopup(
-                    'Submitted for review',
-                    'Staff will verify your explorer link on Telegram. Once accepted, your balance updates automatically — refresh if needed.',
-                    'success'
-                );
-            } catch (err) {
+                return r.json().catch(function () { return {}; }).then(function (d) {
+                    if (!r.ok || !d.ok) {
+                        throw new Error(d.error || ('Request failed (' + r.status + ')'));
+                    }
+                    return d;
+                });
+            }).then(function () {
+                showTopUpSubmitSuccessState();
+                window.setTimeout(function () {
+                    closeFundsModal();
+                    resetTopUpSubmitUi();
+                }, 4500);
+            }).catch(function (err) {
+                if (timer) clearTimeout(timer);
                 var msg = (err && err.message) ? err.message : String(err);
                 if (msg.indexOf('abort') !== -1 || msg.indexOf('Abort') !== -1) {
                     msg = 'Request timed out. Check your connection and try again.';
                 }
-                showAnimatedPopup('Submit failed', msg, 'error');
-            } finally {
-                _topUpSubmitInFlight = false;
-                if (btn) {
-                    btn.disabled = false;
-                    btn.textContent = 'Submit for verification';
-                }
-            }
+                resetTopUpSubmitUi();
+                var panel = document.getElementById('topUpAfterPaidPanel');
+                var fields = document.getElementById('topUpProofFormFields');
+                if (panel) panel.style.display = 'block';
+                if (fields) fields.style.display = '';
+                setTopUpInlineError(msg || 'Submit failed. Try again.');
+            });
         }
 
         function showTopUpPendingAnimation() {
@@ -13749,6 +13860,7 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
             document.getElementById('fundsModal').classList.remove('active');
             document.body.style.overflow = '';
             hideTopUpAfterPaidPanel();
+            resetTopUpSubmitUi();
             // Reset to step 1
             document.getElementById('fundsStep1').style.display = 'block';
             document.getElementById('fundsStep2').style.display = 'none';
