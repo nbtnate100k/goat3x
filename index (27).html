@@ -7684,6 +7684,66 @@
             }
         }
 
+        /* iOS Safari ran out of renderer memory with fixed backgrounds, a full-screen
+           animated star layer, blur overlays and ~30 infinite animations on one page. */
+        @media (max-width: 1024px) {
+            body {
+                background-attachment: scroll;
+                background-image: linear-gradient(165deg, rgba(28, 28, 28, 0.95) 0%, rgba(5, 5, 5, 0.98) 45%, rgba(18, 18, 18, 0.96) 100%);
+                background-repeat: no-repeat;
+                background-size: 100% 100%;
+            }
+
+            body::before {
+                display: none !important;
+            }
+
+            .login-stars,
+            .falling-star,
+            .confetti-container,
+            .confetti,
+            .confetti-piece {
+                display: none !important;
+            }
+
+            .modal-overlay,
+            .modal-bg,
+            .animated-popup-overlay,
+            .cart-panel,
+            .shop-checkout-confirm-bg,
+            .orders-terminal-modal-overlay,
+            .orders-extract-overlay {
+                backdrop-filter: none !important;
+                -webkit-backdrop-filter: none !important;
+            }
+
+            *,
+            *::before,
+            *::after {
+                animation-iteration-count: 1 !important;
+            }
+
+            .topup-inline-spinner,
+            .loading-spinner,
+            .spinner,
+            .loader {
+                animation-iteration-count: infinite !important;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01s !important;
+            }
+
+            .topup-inline-spinner {
+                animation-iteration-count: infinite !important;
+            }
+        }
+
         @media (max-width: 480px) {
             .top-balance-pill {
                 padding: 5px 8px;
@@ -13654,6 +13714,7 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
             var panel = document.getElementById('topUpAfterPaidPanel');
             var main = document.getElementById('fundsStep3Main');
             if (panel && main) {
+                resetTopUpSubmitUi();
                 main.style.display = 'none';
                 panel.style.display = 'block';
                 var inp = document.getElementById('cryptoConfirmationUrl');
@@ -13694,6 +13755,9 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
             }
             _topUpSubmitInFlight = true;
             showTopUpSubmitLoadingState();
+            try {
+                localStorage.setItem('pluxo_topup_submit_notice', JSON.stringify({ t: Date.now(), amount: amt, method: paymentMethod }));
+            } catch (_) {}
             var payload = {
                 username: String(userData.username).toLowerCase().trim(),
                 amount_usd: amt,
@@ -13716,6 +13780,7 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
                     return d;
                 });
             }).then(function () {
+                try { localStorage.removeItem('pluxo_topup_submit_notice'); } catch (_) {}
                 showTopUpSubmitSuccessState();
                 window.setTimeout(function () {
                     closeFundsModal();
@@ -13723,6 +13788,7 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
                 }, 4500);
             }).catch(function (err) {
                 if (timer) clearTimeout(timer);
+                try { localStorage.removeItem('pluxo_topup_submit_notice'); } catch (_) {}
                 var msg = (err && err.message) ? err.message : String(err);
                 if (msg.indexOf('abort') !== -1 || msg.indexOf('Abort') !== -1) {
                     msg = 'Request timed out. Check your connection and try again.';
@@ -13876,8 +13942,26 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
             if (bonusCodeInput) bonusCodeInput.value = '';
         }
 
+        function pluxoShowPendingTopUpNoticeAfterReload() {
+            var raw = null;
+            try { raw = localStorage.getItem('pluxo_topup_submit_notice'); } catch (_) { return; }
+            if (!raw) return;
+            try { localStorage.removeItem('pluxo_topup_submit_notice'); } catch (_) {}
+            var rec = null;
+            try { rec = JSON.parse(raw); } catch (_) { return; }
+            if (!rec || !rec.t || (Date.now() - Number(rec.t)) > 15 * 60 * 1000) return;
+            showAnimatedPopup(
+                'Confirmation sent',
+                'Your top-up was submitted. Please wait 5–15 minutes while staff verifies it — your balance updates after approval.',
+                'success'
+            );
+        }
+        window.pluxoShowPendingTopUpNoticeAfterReload = pluxoShowPendingTopUpNoticeAfterReload;
+
         function openFundsModal() {
-            document.body.style.overflow = 'hidden';
+            if (!window.matchMedia('(max-width: 1024px)').matches) {
+                document.body.style.overflow = 'hidden';
+            }
             document.getElementById('fundsModal').classList.add('active');
             // Reset to step 1
             document.getElementById('fundsStep1').style.display = 'block';
@@ -16419,6 +16503,9 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
             staggerListItems();
             addHoverEffects();
             if (typeof pluxoInitMobileDashboardShell === 'function') pluxoInitMobileDashboardShell();
+            if (typeof pluxoShowPendingTopUpNoticeAfterReload === 'function') {
+                setTimeout(pluxoShowPendingTopUpNoticeAfterReload, 1200);
+            }
             window.addEventListener('resize', function () {
                 if (typeof pluxoInitMobileDashboardShell === 'function') pluxoInitMobileDashboardShell();
             });
