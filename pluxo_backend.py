@@ -7795,6 +7795,7 @@ def run_telegram_bot() -> None:
             tg_topup_callback, pattern=r"^(tua|tur):[a-f0-9]{16}(?::.{1,64})?$"
         )
     )
+    application.add_handler(CallbackQueryHandler(tg_basepay_callback, pattern=r"^basepay"))
     application.add_handler(CommandHandler("start", tg_start))
     application.add_handler(CommandHandler("help", tg_help))
     application.add_handler(CommandHandler("myid", tg_myid))
