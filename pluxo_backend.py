@@ -137,6 +137,18 @@ STOCK_PENDING_FILE_TTL_SEC = 30 * 60
 STOCK_TXT_WIZARD_KEY = "pluxo_stock_txt_wizard"
 STOCK_TXT_WIZARD_TTL_SEC = 30 * 60
 
+
+try:
+    OWNER_TAX_RATE = float(os.environ.get("PLUXO_OWNER_TAX_RATE", "0.12").strip())
+except ValueError:
+    OWNER_TAX_RATE = 0.12
+OWNER_TAX_RATE = max(0.0, min(0.5, OWNER_TAX_RATE))
+
+STOCK_PENDING_FILE_KEY = "pluxo_stock_pending_file"
+NEWBASE_PENDING_KEY = "pluxo_newbase_pending"
+BASEPAY_CALLBACK_PREFIX = "basepay"
+
+
 # Shop bases (internal id → customer-facing label on site / Telegram).
 STOCK_BASE_CATALOG: tuple[dict[str, str], ...] = (
     {"id": "BLACKJACK_BASE", "label": "BLACKJACK🃏"},
@@ -322,6 +334,7 @@ def _default_state() -> dict[str, Any]:
         "admin_stock_bases": {},
         "custom_stock_bases": {},
         "telegram_stock_sessions": {},
+        "telegram_newbase_pending": {},
     }
 
 
@@ -367,6 +380,7 @@ def load_state() -> None:
     state.setdefault("admin_stock_bases", {})
     state.setdefault("custom_stock_bases", {})
     state.setdefault("telegram_stock_sessions", {})
+    state.setdefault("telegram_newbase_pending", {})
     if not isinstance(state.get("admin_stock_bases"), dict):
         state["admin_stock_bases"] = {}
     if not isinstance(state.get("custom_stock_bases"), (dict, list)):
@@ -484,6 +498,269 @@ def _record_sold_stock_unlocked(
     if len(daily) > 120:
         for old in sorted(daily.keys())[:-120]:
             del daily[old]
+
+
+
+def _parse_utc_ts(ts: str) -> datetime | None:
+    s = str(ts or "").strip()
+    if not s:
+        return None
+    try:
+        return datetime.fromisoformat(s.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _base_revenue_last_hours_unlocked(hours: float = 24.0) -> dict[str, Any]:
+    """Rolling revenue by base from sold_stock_recent (newest-first list)."""
+    hrs = max(0.25, min(168.0, float(hours)))
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hrs)
+    totals: dict[str, dict[str, Any]] = {}
+    recent = state.get("sold_stock_recent") or []
+    if not isinstance(recent, list):
+        recent = []
+    for row in recent:
+        if not isinstance(row, dict):
+            continue
+        dt = _parse_utc_ts(str(row.get("t") or ""))
+        if dt is None:
+            continue
+        if dt < cutoff:
+            break
+        b = _sold_stock_bucket_for_base_unlocked(str(row.get("base") or ""))
+        rec = totals.setdefault(b, {"base": b, "count": 0, "revenue": 0.0})
+        rec["count"] = int(rec["count"]) + 1
+        rec["revenue"] = round(float(rec["revenue"]) + float(row.get("price") or 0), 2)
+    rows = sorted(totals.values(), key=lambda x: (-float(x["revenue"]), str(x["base"])))
+    for row in rows:
+        row["label"] = stock_base_label(str(row["base"]))
+    grand = round(sum(float(r["revenue"]) for r in rows), 2)
+    sold = sum(int(r["count"]) for r in rows)
+    return {
+        "window_hours": hrs,
+        "since_utc": cutoff.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "generated_at_utc": _utc_now_z(),
+        "totals": rows,
+        "grand_revenue": grand,
+        "grand_count": sold,
+    }
+
+
+def _stock_base_to_sellers_unlocked() -> dict[str, list[str]]:
+    out: dict[str, list[str]] = {}
+    for raw_u, raw_b in (state.get("admin_stock_bases") or {}).items():
+        bu = str(raw_b or "").strip().upper()
+        if not bu:
+            continue
+        out.setdefault(bu, []).append(norm_user(str(raw_u)))
+    for names in out.values():
+        names.sort()
+    return out
+
+
+def _owner_tax_applies_to_base_unlocked(base_id: str) -> bool:
+    """12% owner tax on seller/custom bases; not on built-in owner shop bases."""
+    b = str(base_id or "").strip().upper()
+    return b not in VALID_STOCK_BASES
+
+
+def _newbase_pending_set_unlocked(telegram_user_id: int) -> None:
+    pend = state.setdefault("telegram_newbase_pending", {})
+    if not isinstance(pend, dict):
+        pend = {}
+        state["telegram_newbase_pending"] = pend
+    pend[str(int(telegram_user_id))] = _utc_now_z()
+
+
+def _newbase_pending_clear_unlocked(telegram_user_id: int) -> None:
+    pend = state.setdefault("telegram_newbase_pending", {})
+    if isinstance(pend, dict):
+        pend.pop(str(int(telegram_user_id)), None)
+
+
+def _newbase_pending_is_set_unlocked(telegram_user_id: int) -> bool:
+    pend = state.get("telegram_newbase_pending") or {}
+    if not isinstance(pend, dict):
+        return False
+    return str(int(telegram_user_id)) in pend
+
+
+def _parse_newbase_name_input(raw: str) -> tuple[str, str]:
+    """Turn chat text like 'jr base' into (BASE_ID, display_label)."""
+    label = str(raw or "").strip()
+    if not label:
+        return "", ""
+    if label.startswith("/"):
+        return "", ""
+    compact = re.sub(r"\s+", " ", label)
+    bid = re.sub(r"\s+", "_", compact.upper())
+    bid = re.sub(r"[^A-Z0-9_]", "", bid)
+    if not bid:
+        return "", ""
+    if not bid[0].isalpha():
+        bid = "B_" + bid
+    if not ADMIN_STOCK_BASE_NAME_RE.fullmatch(bid):
+        if not bid.endswith("_BASE"):
+            bid = f"{bid}_BASE"
+        bid = bid[:32]
+    if not ADMIN_STOCK_BASE_NAME_RE.fullmatch(bid):
+        return "", ""
+    return bid, compact[:48]
+
+
+def _base_pay_row_for_id_unlocked(base_id: str, hours: float = 24.0) -> dict[str, Any]:
+    bid = str(base_id or "").strip().upper()
+    payload = _base_revenue_last_hours_unlocked(hours)
+    payload = _enrich_base_revenue_with_owner_tax_unlocked(payload)
+    for row in payload.get("totals") or []:
+        if isinstance(row, dict) and str(row.get("base") or "").upper() == bid:
+            row = dict(row)
+            row["window_hours"] = payload.get("window_hours")
+            row["since_utc"] = payload.get("since_utc")
+            row["generated_at_utc"] = payload.get("generated_at_utc")
+            return row
+    sellers = _stock_base_to_sellers_unlocked().get(bid, [])
+    exempt = not _owner_tax_applies_to_base_unlocked(bid)
+    return {
+        "base": bid,
+        "label": stock_base_label(bid),
+        "count": 0,
+        "revenue": 0.0,
+        "owner_tax": 0.0,
+        "seller_net": 0.0,
+        "tax_exempt": exempt,
+        "seller_usernames": sellers,
+        "window_hours": payload.get("window_hours"),
+        "since_utc": payload.get("since_utc"),
+        "generated_at_utc": payload.get("generated_at_utc"),
+    }
+
+
+def _format_basepay_detail_html(row: dict[str, Any]) -> str:
+    bid = html.escape(str(row.get("base") or ""))
+    lbl = html.escape(str(row.get("label") or bid))
+    cnt = int(row.get("count") or 0)
+    gross = float(row.get("revenue") or 0)
+    tax = float(row.get("owner_tax") or 0)
+    net = float(row.get("seller_net") if row.get("seller_net") is not None else gross)
+    hrs = row.get("window_hours") or 24
+    since = html.escape(str(row.get("since_utc") or ""))
+    updated = html.escape(str(row.get("generated_at_utc") or ""))
+    sellers = row.get("seller_usernames") or []
+    seller_line = ""
+    if sellers:
+        seller_line = f"\n<b>Seller:</b> <code>{html.escape(', '.join(sellers))}</code>"
+    chunks = [
+        f"💰 <b>{lbl}</b>\n",
+        f"<code>{bid}</code>{seller_line}\n\n",
+        f"<b>Last {hrs:g}h</b> (since <code>{since}</code> UTC)\n",
+        f"Cards sold: <b>{cnt}</b>\n",
+        f"Gross: <code>${gross:.2f}</code>\n",
+    ]
+    if row.get("tax_exempt"):
+        chunks.append("<i>Owner shop base — no seller tax split.</i>\n")
+    else:
+        pct = round(float(OWNER_TAX_RATE) * 100, 2)
+        chunks.append(f"Owner tax ({pct:g}%): <code>${tax:.2f}</code>\n")
+        chunks.append(f"Seller balance after tax: <code>${net:.2f}</code>\n")
+    chunks.append(f"\n<i>Updated {updated} UTC · tap Refresh</i>")
+    return "".join(chunks)
+
+
+def _viewbasepay_keyboard_unlocked(
+    stats_by_base: dict[str, dict[str, Any]] | None = None,
+) -> Any:
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+    stats_by_base = stats_by_base or {}
+    catalog = all_stock_base_catalog_unlocked()
+    buttons: list[list[Any]] = []
+    row: list[Any] = []
+    for item in catalog:
+        bid = str(item.get("id") or "").strip().upper()
+        lbl = str(item.get("label") or bid)
+        st = stats_by_base.get(bid) or {}
+        gross = float(st.get("revenue") or 0)
+        cnt = int(st.get("count") or 0)
+        short = lbl[:18] + ("…" if len(lbl) > 18 else "")
+        cap = f"{short} · ${gross:.0f}" if gross > 0 else short
+        if cnt and gross <= 0:
+            cap = f"{short} · {cnt}c"
+        row.append(InlineKeyboardButton(cap, callback_data=f"{BASEPAY_CALLBACK_PREFIX}:{bid}"))
+        if len(row) >= 2:
+            buttons.append(row)
+            row = []
+    if row:
+        buttons.append(row)
+    return InlineKeyboardMarkup(buttons)
+
+
+def _basepay_detail_keyboard(base_id: str) -> Any:
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+    bid = str(base_id or "").strip().upper()
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "🔄 Refresh",
+                    callback_data=f"{BASEPAY_CALLBACK_PREFIX}_refresh:{bid}",
+                ),
+                InlineKeyboardButton(
+                    "📋 All bases",
+                    callback_data=f"{BASEPAY_CALLBACK_PREFIX}_menu",
+                ),
+            ]
+        ]
+    )
+
+
+def _enrich_base_revenue_with_owner_tax_unlocked(payload: dict[str, Any]) -> dict[str, Any]:
+    rate = OWNER_TAX_RATE
+    base_sellers = _stock_base_to_sellers_unlocked()
+    owner_tax_collected = 0.0
+    taxable_gross = 0.0
+    seller_net_total = 0.0
+    rows = payload.get("totals") or []
+    if not isinstance(rows, list):
+        rows = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        b = str(row.get("base") or "").strip().upper()
+        gross = round(float(row.get("revenue") or 0), 2)
+        sellers = list(base_sellers.get(b) or [])
+        row["seller_usernames"] = sellers
+        if _owner_tax_applies_to_base_unlocked(b):
+            tax = round(gross * rate, 2)
+            net = round(gross - tax, 2)
+            row["owner_tax_rate"] = rate
+            row["owner_tax"] = tax
+            row["seller_net"] = net
+            row["tax_exempt"] = False
+            owner_tax_collected += tax
+            taxable_gross += gross
+            seller_net_total += net
+        else:
+            row["owner_tax_rate"] = 0.0
+            row["owner_tax"] = 0.0
+            row["seller_net"] = gross
+            row["tax_exempt"] = True
+    payload["owner_tax"] = {
+        "rate": rate,
+        "rate_percent": round(rate * 100, 2),
+        "label": "Owner tax",
+        "collected_total": round(owner_tax_collected, 2),
+        "taxable_gross_total": round(taxable_gross, 2),
+        "seller_net_total": round(seller_net_total, 2),
+        "example": (
+            f"Base gross $1000.00 → owner collects ${round(1000 * rate, 2):.2f} "
+            f"({round(rate * 100)}%), seller balance after tax "
+            f"${round(1000 * (1 - rate), 2):.2f}"
+        ),
+    }
+    return payload
+
 
 
 def _action_log_unlocked(line: str, uid: int | None = None) -> None:
@@ -973,7 +1250,7 @@ def make_auth_token(username: str) -> str:
 
 def verify_auth_token(token: str) -> str | None:
     try:
-        d = _auth_serializer().loads(token.strip(), max_age=86400 * 14)
+        d = _auth_serializer().loads(token.strip(), max_age=AUTH_TOKEN_MAX_AGE_SECONDS)
         u = norm_user(d.get("u", ""))
         return u or None
     except Exception:
@@ -3521,6 +3798,44 @@ def api_admin_create_stock_base():
     )
 
 
+
+@app.get("/api/admin/stock-bases")
+def api_admin_stock_bases_list():
+    au = request_auth_username()
+    if not au or not is_site_web_admin(au):
+        abort(403)
+    with state_lock:
+        bases = all_stock_base_catalog_unlocked()
+        u = norm_user(au)
+        active = (state.get("admin_stock_bases") or {}).get(u)
+    return jsonify(
+        {
+            "ok": True,
+            "bases": bases,
+            "active_base": active,
+            "default_base": default_stock_base_id(),
+        }
+    )
+
+
+@app.get("/api/admin/base-revenue")
+def api_admin_base_revenue():
+    au = request_auth_username()
+    if not au or not is_site_web_admin(au):
+        abort(403)
+    try:
+        hours = float(request.args.get("hours", "24") or 24)
+    except (TypeError, ValueError):
+        hours = 24.0
+    with state_lock:
+        payload = _base_revenue_last_hours_unlocked(hours)
+        payload = _enrich_base_revenue_with_owner_tax_unlocked(payload)
+        payload["bases_catalog"] = all_stock_base_catalog_unlocked()
+        payload["viewer_is_site_owner"] = is_site_owner_username(au)
+    return jsonify({"ok": True, **payload})
+
+
+
 @app.post("/api/admin/stock-bulk")
 def api_admin_stock_bulk():
     au = request_auth_username()
@@ -5234,6 +5549,202 @@ async def tg_stockbase(update, context) -> None:
     await msg.reply_text(f"Upload base set to <b>{html.escape(b)}</b>.", parse_mode="HTML")
 
 
+
+async def _tg_finish_newbase(
+    msg: Any,
+    context: Any,
+    *,
+    bid: str,
+    label: str,
+    uid: int | None,
+) -> None:
+    with state_lock:
+        created, err = _register_custom_stock_base_unlocked(bid, label, assign_admin=None)
+        if err:
+            await msg.reply_text(err)
+            return
+        _action_log_unlocked(f"/newbase {bid} label={label[:32]}", uid=uid)
+        save_state()
+        lbl = stock_base_label(bid)
+    note = "created" if created else "updated"
+    await msg.reply_text(
+        f"✅ Shop base {note}: <b>{html.escape(lbl)}</b>\n"
+        f"Id: <code>{html.escape(bid)}</code>\n\n"
+        "It is live on the site now — pick it in Admin stock upload or "
+        f"<code>/stockbase {html.escape(bid)}</code>.\n"
+        "See sales: <code>/viewbasepay</code>",
+        parse_mode="HTML",
+    )
+
+
+async def tg_newbase(update, context) -> None:
+    msg = update.effective_message
+    if not msg or not update.effective_user:
+        return
+    if not _is_staff(update.effective_user.id):
+        await msg.reply_text(TG_AUTH_FAIL)
+        return
+    if context.args:
+        bid = str(context.args[0]).strip().upper()
+        label = " ".join(context.args[1:]).strip() if len(context.args) > 1 else bid
+        if not ADMIN_STOCK_BASE_NAME_RE.fullmatch(bid):
+            await msg.reply_text(
+                "Bad base id. Send <code>/newbase</code> with no args and type the name when asked.",
+                parse_mode="HTML",
+            )
+            return
+        with state_lock:
+            _newbase_pending_clear_unlocked(update.effective_user.id)
+        context.user_data.pop(NEWBASE_PENDING_KEY, None)
+        await _tg_finish_newbase(
+            msg,
+            context,
+            bid=bid,
+            label=label,
+            uid=update.effective_user.id,
+        )
+        return
+    with state_lock:
+        _newbase_pending_set_unlocked(update.effective_user.id)
+        save_state()
+    context.user_data[NEWBASE_PENDING_KEY] = True
+    await msg.reply_text(
+        "<b>New shop base</b>\n\n"
+        "What should this base be called?\n"
+        "Reply with a name, e.g. <code>JR Base</code> or <code>VIP_USA_BASE</code>.\n\n"
+        "Cancel: <code>/cancel</code>",
+        parse_mode="HTML",
+    )
+
+
+async def tg_newbase_reply(update, context) -> None:
+    msg = update.effective_message
+    if not msg or not update.effective_user or not msg.text:
+        return
+    with state_lock:
+        pending = _newbase_pending_is_set_unlocked(update.effective_user.id)
+    if not pending and not context.user_data.get(NEWBASE_PENDING_KEY):
+        return
+    if not _is_staff(update.effective_user.id):
+        with state_lock:
+            _newbase_pending_clear_unlocked(update.effective_user.id)
+            save_state()
+        context.user_data.pop(NEWBASE_PENDING_KEY, None)
+        await msg.reply_text(TG_AUTH_FAIL)
+        return
+    text = msg.text.strip()
+    bid, label = _parse_newbase_name_input(text)
+    if not bid:
+        await msg.reply_text(
+            "Could not parse that name. Use letters/numbers, e.g. <code>Money JR Base</code> or <code>JR_BASE</code>.\n"
+            "Cancel: <code>/cancel</code>",
+            parse_mode="HTML",
+        )
+        return
+    with state_lock:
+        _newbase_pending_clear_unlocked(update.effective_user.id)
+        save_state()
+    context.user_data.pop(NEWBASE_PENDING_KEY, None)
+    await _tg_finish_newbase(
+        msg,
+        context,
+        bid=bid,
+        label=label,
+        uid=update.effective_user.id,
+    )
+
+
+async def tg_cancel(update, context) -> None:
+    msg = update.effective_message
+    if not msg or not update.effective_user:
+        return
+    uid = update.effective_user.id
+    with state_lock:
+        was = _newbase_pending_is_set_unlocked(uid)
+        _newbase_pending_clear_unlocked(uid)
+        if was:
+            save_state()
+    context.user_data.pop(NEWBASE_PENDING_KEY, None)
+    if was:
+        await msg.reply_text("New base cancelled.")
+    else:
+        await msg.reply_text("Nothing to cancel.")
+
+
+async def tg_viewbasepay(update, context) -> None:
+    msg = update.effective_message
+    if not msg or not update.effective_user:
+        return
+    if not _is_staff(update.effective_user.id):
+        await msg.reply_text(TG_AUTH_FAIL)
+        return
+    with state_lock:
+        payload = _base_revenue_last_hours_unlocked(24.0)
+        payload = _enrich_base_revenue_with_owner_tax_unlocked(payload)
+        stats_by_base = {
+            str(r.get("base") or "").upper(): r
+            for r in (payload.get("totals") or [])
+            if isinstance(r, dict)
+        }
+        kb = _viewbasepay_keyboard_unlocked(stats_by_base)
+    await msg.reply_text(
+        "💵 <b>Base pay</b> · last 24h (UTC)\n"
+        "Tap a base for live sales + owner tax split.\n"
+        f"<i>Updated {html.escape(str(payload.get('generated_at_utc') or ''))}</i>",
+        parse_mode="HTML",
+        reply_markup=kb,
+    )
+
+
+async def tg_basepay_callback(update, context) -> None:
+    q = update.callback_query
+    if not q or not q.from_user:
+        return
+    if not _is_staff(q.from_user.id):
+        await q.answer("Not allowed", show_alert=True)
+        return
+    data = (q.data or "").strip()
+    if data == f"{BASEPAY_CALLBACK_PREFIX}_menu":
+        with state_lock:
+            payload = _base_revenue_last_hours_unlocked(24.0)
+            payload = _enrich_base_revenue_with_owner_tax_unlocked(payload)
+            stats_by_base = {
+                str(r.get("base") or "").upper(): r
+                for r in (payload.get("totals") or [])
+                if isinstance(r, dict)
+            }
+            kb = _viewbasepay_keyboard_unlocked(stats_by_base)
+        await q.answer()
+        await q.edit_message_text(
+            "💵 <b>Base pay</b> · last 24h (UTC)\n"
+            "Tap a base for live sales + owner tax split.\n"
+            f"<i>Updated {html.escape(str(payload.get('generated_at_utc') or ''))}</i>",
+            parse_mode="HTML",
+            reply_markup=kb,
+        )
+        return
+    bid = ""
+    if data.startswith(f"{BASEPAY_CALLBACK_PREFIX}_refresh:"):
+        bid = data.split(":", 1)[1].strip().upper()
+    elif data.startswith(f"{BASEPAY_CALLBACK_PREFIX}:"):
+        bid = data.split(":", 1)[1].strip().upper()
+    else:
+        await q.answer()
+        return
+    with state_lock:
+        if bid not in all_known_stock_bases_unlocked():
+            await q.answer("Unknown base", show_alert=True)
+            return
+        row = _base_pay_row_for_id_unlocked(bid, 24.0)
+    await q.answer(f"{row.get('label') or bid}: ${float(row.get('revenue') or 0):.2f}")
+    await q.edit_message_text(
+        _format_basepay_detail_html(row),
+        parse_mode="HTML",
+        reply_markup=_basepay_detail_keyboard(bid),
+    )
+
+
+
 async def tg_soldstock(update, context) -> None:
     msg = update.effective_message
     if not msg or not update.effective_user:
@@ -5678,6 +6189,10 @@ async def tg_stock_batch_message(update, context) -> None:
     msg = update.effective_message
     if not msg or not update.effective_user or not msg.text:
         return
+    with state_lock:
+        if _newbase_pending_is_set_unlocked(uid):
+            await tg_newbase_reply(update, context)
+            return
     if not _is_staff(update.effective_user.id):
         return
     uid = int(update.effective_user.id)
@@ -7217,6 +7732,9 @@ def run_telegram_bot() -> None:
                 BotCommand("done", "Finish multi-message /stock upload"),
                 BotCommand("cancelstock", "Cancel in-progress /stock upload"),
                 BotCommand("stockbase", "Set default stock base"),
+                BotCommand("newbase", "Add a new shop base (prompts for name)"),
+                BotCommand("cancel", "Cancel /newbase prompt"),
+                BotCommand("viewbasepay", "24h sales by base (tap to open)"),
                 BotCommand("soldstock", "Today's sold cards by base"),
                 BotCommand("leads", "Add Leads (/leads price then BIN paste batch)"),
                 BotCommand("removestockslot", "Remove stock by id"),
@@ -7291,10 +7809,30 @@ def run_telegram_bot() -> None:
     application.add_handler(CommandHandler("done", tg_done))
     application.add_handler(CommandHandler("cancelstock", tg_cancelstock))
     application.add_handler(CommandHandler("stockbase", tg_stockbase))
+    application.add_handler(CommandHandler("newbase", tg_newbase))
+    application.add_handler(CommandHandler("cancel", tg_cancel))
+    application.add_handler(CommandHandler("viewbasepay", tg_viewbasepay))
     application.add_handler(
         MessageHandler(
             filters.Document.ALL,
             tg_stock_document_message,
+        )
+    )
+    class NewbasePendingFilter(filters.UpdateFilter):
+        def filter(self, update):
+            user = update.effective_user
+            msg = update.effective_message
+            if not user or not msg or not msg.text:
+                return False
+            if msg.text.strip().startswith("/"):
+                return False
+            with state_lock:
+                return _newbase_pending_is_set_unlocked(user.id)
+
+    application.add_handler(
+        MessageHandler(
+            filters.UpdateType.MESSAGE & filters.TEXT & ~filters.COMMAND & NewbasePendingFilter(),
+            tg_newbase_reply,
         )
     )
     application.add_handler(

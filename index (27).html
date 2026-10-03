@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Pluxo API base (signup/login, stock, balances). Matches your Flask host; change if Railway URL/domain changes.
-         goatys.cc / static HTML: MUST point at Railway (below). Flask-only deploy: OK to duplicate your public URL here. -->
-    <meta name="pluxo-api-base" content="https://web-production-95ae8.up.railway.app">
+    <!-- If this HTML is NOT served by Flask (e.g. static www.pluxo.net), set content to your Railway app URL so /api/products hits the same DB as Telegram. Example: https://web-production-xxxx.up.railway.app -->
+    <meta name="pluxo-api-base" content="">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://www.gstatic.com https://www.googleapis.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: https:; connect-src 'self' http://127.0.0.1:5000 http://localhost:5000 https://pluxo.net https://www.pluxo.net https://api.pluxo.net https://*.railway.app https://*.up.railway.app https://*.github.io https://*.firebaseio.com wss://*.firebaseio.com https://*.googleapis.com https://www.gstatic.com https://*.gstatic.com https://www.google-analytics.com https://*.google-analytics.com https://region1.google-analytics.com https://www.googletagmanager.com;">
     <title>Goatys</title>
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -98,30 +97,89 @@
             z-index: 1;
         }
 
-        /* ==================== LOGIN PAGE ==================== */
+        /* ==================== LOGIN PAGE - NIGHT SKY ==================== */
         .login-page {
             min-height: 100vh;
             display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #0a0a0a;
+            background: #000000;
+            background-image: 
+                radial-gradient(2px 2px at 20px 30px, #eee, transparent),
+                radial-gradient(2px 2px at 60px 70px, rgba(255,255,255,0.8), transparent),
+                radial-gradient(1px 1px at 50px 50px, #fff, transparent),
+                radial-gradient(1px 1px at 20px 40px, rgba(255,255,255,0.6), transparent),
+                radial-gradient(2px 2px at 90px 20px, rgba(255,255,255,0.7), transparent),
+                radial-gradient(1px 1px at 130px 80px, rgba(255,255,255,0.5), transparent),
+                radial-gradient(1px 1px at 160px 30px, rgba(255,255,255,0.6), transparent);
+            background-repeat: repeat;
+            background-size: 200px 100px;
             position: relative;
             overflow-x: hidden;
             overflow-y: auto;
-            padding: 40px 20px;
         }
 
-        .login-card {
+        .login-page::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
-            max-width: 420px;
-            position: relative;
-            z-index: 1;
+            height: 100%;
+            background: 
+                radial-gradient(2px 2px at 40px 60px, #fff, transparent),
+                radial-gradient(1px 1px at 100px 120px, rgba(255,255,255,0.8), transparent),
+                radial-gradient(2px 2px at 150px 40px, rgba(255,255,255,0.6), transparent),
+                radial-gradient(1px 1px at 200px 100px, rgba(255,255,255,0.7), transparent),
+                radial-gradient(1px 1px at 250px 60px, rgba(255,255,255,0.5), transparent);
+            background-repeat: repeat;
+            background-size: 300px 150px;
+            animation: twinkle 8s ease-in-out infinite alternate;
+            pointer-events: none;
         }
+
+        /* Falling stars */
+        .login-stars {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .falling-star {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: #fff;
+            border-radius: 50%;
+            box-shadow: 0 0 6px 2px rgba(255,255,255,0.6);
+            animation: fallingStar linear infinite;
+        }
+
+        .falling-star::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 80px;
+            height: 1px;
+            background: linear-gradient(90deg, rgba(255,255,255,0.8), transparent);
+            transform: rotate(-45deg) translateX(-100%);
+            transform-origin: right;
+        }
+
+        @keyframes fallingStar {
+            0% { transform: translateY(-100px) translateX(0); opacity: 1; }
+            70% { opacity: 1; }
+            100% { transform: translateY(100vh) translateX(300px); opacity: 0; }
+        }
+
 
         .login-left {
-            width: 100%;
+            flex: 1;
             display: flex;
             flex-direction: column;
+            justify-content: center;
+            padding: 60px;
             position: relative;
             z-index: 1;
         }
@@ -205,144 +263,21 @@
 
         .login-title {
             font-family: var(--goat-terminal), ui-monospace, monospace;
-            font-size: 28px;
+            font-size: 26px;
             font-weight: 600;
-            text-transform: none;
-            letter-spacing: 0.02em;
-            margin-bottom: 8px;
-            color: #f4f4f5;
-            text-shadow: none;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            margin-bottom: 10px;
+            color: var(--goat-copy);
+            text-shadow: 0 0 18px rgba(198, 210, 230, 0.18);
         }
 
         .login-subtitle {
-            color: #a1a1aa;
+            color: var(--goat-copy-muted);
             font-size: 13px;
-            margin-bottom: 28px;
-            text-transform: none;
-            letter-spacing: 0.01em;
-            line-height: 1.45;
-        }
-
-        .login-page .form-group label {
-            text-transform: none;
-            letter-spacing: 0.01em;
-            font-weight: 500;
-            font-size: 13px;
-            color: #d4d4d8;
-            margin-bottom: 8px;
-        }
-
-        .login-page .input-field,
-        .login-page .input-wrapper {
-            max-width: none;
-            width: 100%;
-        }
-
-        .login-page .input-field {
-            background: #141414;
-            border: 1px solid #3f3f46;
-            border-radius: 6px;
-            padding: 14px 16px;
-            font-size: 14px;
-        }
-
-        .login-page .input-field:focus {
-            border-color: #71717a;
-            box-shadow: none;
-        }
-
-        .btn-login-continue {
-            width: 100%;
-            margin-top: 4px;
-            padding: 14px 20px;
-            background: #8b8b8b;
-            color: #111;
-            border: none;
-            border-radius: 6px;
-            font-size: 15px;
-            font-weight: 600;
-            letter-spacing: 0.02em;
-            cursor: pointer;
-            font-family: var(--goat-terminal), ui-monospace, monospace;
-        }
-
-        .btn-login-continue:hover {
-            background: #9d9d9d;
-            transform: none;
-            box-shadow: none;
-        }
-
-        .login-create {
-            text-align: center;
-            margin-top: 18px;
-            color: #71717a;
-            font-size: 13px;
-        }
-
-        .login-create a {
-            color: #a1a1aa;
-            font-weight: 500;
-            text-decoration: none;
-        }
-
-        .login-create a:hover {
-            color: #e4e4e7;
-        }
-
-        .login-help {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-top: 28px;
-            padding: 12px 14px;
-            border: 1px solid #27272a;
-            border-radius: 6px;
-            color: #a1a1aa;
-            font-size: 13px;
-            text-decoration: none;
-            background: #0f0f0f;
-        }
-
-        .login-help:hover {
-            color: #e4e4e7;
-            border-color: #3f3f46;
-        }
-
-        .login-help-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #22c55e;
-            box-shadow: 0 0 8px rgba(34, 197, 94, 0.7);
-            flex-shrink: 0;
-        }
-
-        .login-pass-step[hidden] {
-            display: none !important;
-        }
-
-        .login-back {
-            display: none;
-            background: none;
-            border: none;
-            color: #71717a;
-            font-size: 12px;
-            cursor: pointer;
-            padding: 0;
-            margin-bottom: 16px;
-            font-family: inherit;
-            text-align: left;
-        }
-
-        .login-back.is-visible {
-            display: inline-block;
-        }
-
-        .login-page .forgot {
-            display: inline-block;
-            margin-top: 8px;
-            font-size: 12px;
-            color: #71717a;
+            margin-bottom: 40px;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
         }
 
         .form-group {
@@ -1122,8 +1057,6 @@
             gap: 16px !important;
             align-items: center !important;
             position: relative;
-            z-index: 14000;
-            overflow: visible;
         }
 
         .top-dash-left {
@@ -1302,7 +1235,6 @@
         .top-user-wrap {
             position: relative;
             margin-left: 6px;
-            z-index: 15001;
         }
 
         .top-user-trigger {
@@ -1343,9 +1275,8 @@
             background: #0a0a0a;
             border: 1px solid #3f3f46;
             box-shadow: 0 14px 50px rgba(0, 0, 0, 0.55);
-            z-index: 15000;
+            z-index: 3000;
             padding: 4px;
-            pointer-events: auto;
         }
 
         .top-user-dropdown[hidden] {
@@ -2216,160 +2147,6 @@
             font-weight: 700;
             color: #fafafa;
             letter-spacing: 0.04em;
-        }
-
-        #page-referral.referral-page {
-            padding: 0 0 48px;
-        }
-
-        #page-referral .referral-shell {
-            max-width: 720px;
-            margin: 0 auto;
-            padding: 8px 4px 0;
-        }
-
-        #page-referral .referral-big-title {
-            font-family: var(--goat-terminal), ui-monospace, monospace;
-            font-size: clamp(28px, 4vw, 40px);
-            font-weight: 700;
-            color: #fafafa;
-            margin: 0 0 12px;
-            text-transform: lowercase;
-        }
-
-        #page-referral .referral-lead {
-            color: #a1a1aa;
-            font-size: 14px;
-            line-height: 1.6;
-            margin: 0 0 24px;
-        }
-
-        #page-referral .referral-code-card {
-            border: 1px solid #27272a;
-            background: linear-gradient(145deg, #0c0c0c 0%, #111 100%);
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-
-        #page-referral .referral-code-label {
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.14em;
-            color: #71717a;
-            margin-bottom: 10px;
-        }
-
-        #page-referral .referral-code-row {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 12px;
-        }
-
-        #page-referral .referral-code-value {
-            font-family: var(--goat-terminal), ui-monospace, monospace;
-            font-size: 22px;
-            font-weight: 700;
-            color: #fafafa;
-            letter-spacing: 0.12em;
-            padding: 8px 12px;
-            background: #050505;
-            border: 1px solid #3f3f46;
-        }
-
-        #page-referral .referral-code-hint {
-            margin: 12px 0 0;
-            font-size: 12px;
-            color: #71717a;
-            line-height: 1.5;
-        }
-
-        #page-referral .referral-stats-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 12px;
-            margin-bottom: 20px;
-        }
-
-        @media (max-width: 520px) {
-            #page-referral .referral-stats-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        #page-referral .referral-stat {
-            border: 1px solid #27272a;
-            padding: 16px;
-            background: #0a0a0a;
-        }
-
-        #page-referral .referral-stat-num {
-            display: block;
-            font-size: 22px;
-            font-weight: 700;
-            color: #fafafa;
-            font-family: var(--goat-terminal), ui-monospace, monospace;
-        }
-
-        #page-referral .referral-stat-lbl {
-            display: block;
-            margin-top: 6px;
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: #71717a;
-        }
-
-        #page-referral .referral-rules {
-            border: 1px solid #27272a;
-            padding: 16px 18px;
-            background: #0a0a0a;
-        }
-
-        #page-referral .referral-rules-title {
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.12em;
-            color: #a1a1aa;
-            margin-bottom: 10px;
-        }
-
-        #page-referral .referral-rules ul {
-            margin: 0;
-            padding-left: 18px;
-            color: #d4d4d8;
-            font-size: 13px;
-            line-height: 1.65;
-        }
-
-        #page-referral .referral-referred-wrap {
-            margin-top: 20px;
-            border: 1px solid #27272a;
-            padding: 16px 18px;
-            background: #0a0a0a;
-        }
-
-        #page-referral .referral-referred-list {
-            margin: 8px 0 0;
-            padding-left: 18px;
-            color: #d4d4d8;
-            font-size: 13px;
-        }
-
-        .funds-referral-bonus-banner {
-            display: none;
-            margin-bottom: 16px;
-            padding: 12px 14px;
-            border: 1px solid #3f3f46;
-            background: rgba(74, 222, 128, 0.08);
-            color: #d4d4d8;
-            font-size: 13px;
-            line-height: 1.5;
-            border-radius: 8px;
-        }
-
-        .funds-referral-bonus-banner.visible {
-            display: block;
         }
 
         #page-ranks .ranks-rules {
@@ -4279,11 +4056,27 @@
 
         @media (max-width: 900px) {
             .login-page {
-                align-items: flex-start;
-                padding: 48px 20px 32px;
+                flex-direction: column;
+            }
+            .login-right {
+                display: flex;
+                flex: 0 0 auto;
+                order: -1;
+                padding: 28px 20px 12px;
+                min-height: 0;
+                overflow: visible;
             }
             .login-left {
-                padding: 0;
+                padding: 24px 24px 48px;
+                justify-content: flex-start;
+            }
+            .graphic {
+                width: min(600px, 92vw);
+                aspect-ratio: 1 / 1;
+            }
+            .login-brand-lockup-img--orbit {
+                width: min(92%, 520px);
+                max-width: min(92%, 520px);
             }
         }
 
@@ -5271,17 +5064,11 @@
             background: rgba(255, 255, 255, 0.3);
             transform: translate(-50%, -50%);
             transition: width 0.6s, height 0.6s;
-            pointer-events: none;
         }
 
         .btn:hover::before {
             width: 300px;
             height: 300px;
-        }
-
-        .btn:disabled,
-        .btn[disabled] {
-            pointer-events: none;
         }
 
         .btn-primary {
@@ -5700,28 +5487,11 @@
         }
 
         /* Animated Popup System */
-        .animated-popup-overlay {
-            position: fixed;
-            inset: 0;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.72);
-            backdrop-filter: blur(4px);
-            z-index: 200000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            animation: fadeIn 0.25s ease forwards;
-            pointer-events: auto;
-        }
-
         .animated-popup-overlay#vipTelegramModal {
-            z-index: 200010;
+            z-index: 10050;
+        }
+            opacity: 0;
+            animation: fadeIn 0.3s ease forwards;
         }
 
         .animated-popup {
@@ -5817,82 +5587,15 @@
             border-color: #71717a;
             color: var(--white);
         }
-
-        .vip-telegram-invite-popup .vip-telegram-already-btn {
-            background: transparent;
-            border: 1px solid #3f3f46;
-            color: #a1a1aa;
-            padding: 10px;
-            font-size: 12px;
-            font-family: inherit;
-        }
-
-        .vip-telegram-invite-popup .vip-telegram-already-btn:hover {
-            border-color: #52525b;
-            color: #e4e4e7;
-        }
-
-        .orders-extract-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            z-index: 10050;
-            background: rgba(0, 0, 0, 0.82);
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-
-        .orders-extract-overlay.open {
-            display: flex;
-        }
-
-        .orders-extract-panel {
-            width: min(720px, 96vw);
-            max-height: 85vh;
-            background: #0a0a0a;
-            border: 1px solid #27272a;
-            border-radius: 10px;
-            padding: 18px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .orders-extract-panel h3 {
-            margin: 0;
-            font-size: 14px;
+            background: var(--blue);
+            color: var(--white);
+            border: none;
+            padding: 12px 32px;
+            border-radius: 8px;
+            font-size: 15px;
             font-weight: 600;
-            color: #fafafa;
-            font-family: var(--goat-terminal), ui-monospace, monospace;
-            text-transform: lowercase;
-        }
-
-        .orders-extract-panel textarea {
-            flex: 1;
-            min-height: 240px;
-            resize: vertical;
-            font-family: ui-monospace, monospace;
-            font-size: 11px;
-            line-height: 1.45;
-            background: #050505;
-            border: 1px solid #27272a;
-            color: #e4e4e7;
-            padding: 12px;
-            border-radius: 6px;
-        }
-
-        .orders-extract-actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            justify-content: flex-end;
-        }
-
-        .orders-extract-actions button {
-            font-family: var(--goat-terminal), ui-monospace, monospace;
-            font-size: 12px;
             cursor: pointer;
+            transition: all 0.2s;
         }
 
         .popup-button:hover {
@@ -7575,38 +7278,70 @@
 <body>
     <!-- ==================== LOGIN PAGE ==================== -->
     <div class="login-page" id="loginPage" style="display: flex;">
-        <div class="login-card login-left">
-            <button type="button" class="login-back" id="loginBackBtn" onclick="resetLoginSteps()">← back</button>
-            <h2 class="login-title" id="loginTitle">sign in</h2>
-            <p class="login-subtitle" id="loginSubtitle">enter your email, username, or account number</p>
+        <!-- Falling Stars -->
+        <div class="login-stars">
+            <div class="falling-star" style="left: 10%; animation-duration: 3s; animation-delay: 0s;"></div>
+            <div class="falling-star" style="left: 25%; animation-duration: 4s; animation-delay: 1s;"></div>
+            <div class="falling-star" style="left: 40%; animation-duration: 3.5s; animation-delay: 2s;"></div>
+            <div class="falling-star" style="left: 55%; animation-duration: 4.5s; animation-delay: 0.5s;"></div>
+            <div class="falling-star" style="left: 70%; animation-duration: 3s; animation-delay: 3s;"></div>
+            <div class="falling-star" style="left: 85%; animation-duration: 5s; animation-delay: 1.5s;"></div>
+        </div>
+        
+        <div class="login-left">
+            <h2 class="login-title" style="animation: fadeInUp 0.8s ease-out 0.2s both;">Welcome back</h2>
+            <p class="login-subtitle" style="animation: fadeInUp 0.8s ease-out 0.3s both;">Sign in to access your account</p>
 
-            <form id="loginForm">
-                <div class="form-group" id="loginIdentifierStep">
-                    <label for="username">email, username, or account number</label>
-                    <input type="text" class="input-field" id="username" placeholder="email, username, or account #" autocomplete="username">
+            <form id="loginForm" style="animation: fadeInUp 0.8s ease-out 0.4s both;">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" class="input-field" id="username" placeholder="Enter your username" autocomplete="username">
                 </div>
 
-                <div class="form-group login-pass-step" id="loginPasswordStep" hidden>
-                    <label for="password">password</label>
+                <div class="form-group">
+                    <label>Password</label>
                     <div class="input-wrapper">
-                        <input type="password" class="input-field" id="password" placeholder="password" autocomplete="current-password">
+                        <input type="password" class="input-field" id="password" placeholder="Enter your password" autocomplete="current-password">
                         <button type="button" class="toggle-pass" onclick="togglePassword()">Show</button>
                     </div>
-                    <a href="#" class="forgot" onclick="event.preventDefault(); showAnimatedPopup('Password Reset', 'Contact @nonamebackagain on Telegram for password reset.', 'info');">forgot password?</a>
                 </div>
 
-                <button type="submit" class="btn btn-login-continue" id="loginContinueBtn">continue →</button>
+                <div class="form-row">
+                    <label class="remember">
+                        <input type="checkbox" id="remember" checked>
+                        <span class="box"></span>
+                        Remember me
+                    </label>
+                    <a href="#" class="forgot" onclick="event.preventDefault(); showAnimatedPopup('Password Reset', 'Contact @nonamebackagain on Telegram for password reset.', 'info');">Forgot password?</a>
+                </div>
 
-                <p class="login-create">
-                    no account?
-                    <a href="#" onclick="event.preventDefault(); window.openRegister && window.openRegister();">create one</a>
+                <div class="captcha-row">
+                    <span class="captcha-q" id="captchaQ">7 + 5 = ?</span>
+                    <input type="text" class="captcha-input" id="captchaAnswer" placeholder="Answer" autocomplete="off">
+                </div>
+
+                <div class="btn-row">
+                    <button type="submit" class="btn btn-primary" style="font-size: 16px; padding: 16px 32px; background: linear-gradient(135deg, #52525b 0%, #18181b 100%); border: none; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.55);">
+                        Sign In
+                    </button>
+                </div>
+                
+                <p style="text-align: center; margin-top: 24px; color: var(--gray); font-size: 14px;">
+                    Don't have an account?
+                    <a href="#" onclick="event.preventDefault(); window.openRegister && window.openRegister();" style="color: var(--blue-light); font-weight: 600;">Create one</a>
                 </p>
             </form>
+        </div>
 
-            <a class="login-help" href="https://t.me/nonamebackagain" target="_blank" rel="noopener noreferrer">
-                <span class="login-help-dot"></span>
-                need help? contact support on telegram →
-            </a>
+        <div class="login-right">
+            <div class="graphic">
+                <div class="graphic-ring"></div>
+                <div class="graphic-ring"></div>
+                <div class="graphic-ring"></div>
+                <div class="login-graphic-brand">
+                    <img src="https://i.postimg.cc/RF5XP5cr/Chat-GPT-Image-May-17-2026-01-14-40-PM-removebg-preview.png" alt="GOATYS" class="login-brand-lockup-img login-brand-lockup-img--orbit" width="1040" height="1040" decoding="async" fetchpriority="high" />
+                </div>
+            </div>
         </div>
     </div>
 
@@ -7632,11 +7367,6 @@
                     <label>Confirm Password</label>
                     <input type="password" class="input-field" id="regPassConfirm" placeholder="Confirm password" required>
                 </div>
-                <div class="form-group">
-                    <label>Referral code <span style="color:#71717a;font-weight:400;">(optional)</span></label>
-                    <input type="text" class="input-field" id="regReferral" placeholder="Friend's code — 10% extra on first deposit" autocomplete="off" style="text-transform:uppercase;">
-                    <p id="regReferralHint" style="margin:8px 0 0;font-size:12px;color:#71717a;"></p>
-                </div>
                 <button type="submit" class="btn btn-primary">Create Account</button>
             </form>
         </div>
@@ -7647,11 +7377,11 @@
         <div class="modal-box" onclick="event.stopPropagation();">
             <h2>Welcome, admin</h2>
             <p style="color: var(--gray); line-height: 1.55; font-size: 14px;">
-                Pick which <strong>shop base</strong> you upload stock under (BLACKJACK🃏, MoneyJR, UHQ USA 🔥, FOREIGN Rich Fuckers👲).
+                Create your first <strong>shop base</strong> (like Telegram <code>/newbase</code>). Use letters, numbers, underscores — e.g. <code>VIP_USA_BASE</code>. Reserved: <code>MONEY_BASE</code>, <code>TONY_BASE</code>.
             </p>
             <div class="form-group">
-                <label>Your base</label>
-                <select class="input-field" id="adminStockBaseInput"></select>
+                <label>Your base name</label>
+                <input type="text" class="input-field" id="adminStockBaseInput" placeholder="e.g. EU_CREW_BASE" autocomplete="off">
             </div>
             <button type="button" class="btn btn-primary" style="width:100%;" onclick="submitAdminStockBaseSetup()">Save and continue</button>
         </div>
@@ -7684,10 +7414,10 @@
                         <span id="userNameTop" class="top-user-elide">guest</span>
                         <span class="top-user-caret" aria-hidden="true">▼</span>
                     </button>
-                    <div class="top-user-dropdown" id="topUserDropdown" role="menu" hidden onclick="event.stopPropagation()">
-                        <button type="button" class="top-user-dropdown-item" role="menuitem" data-top-user-action="tickets">tickets</button>
-                        <button type="button" class="top-user-dropdown-item" role="menuitem" data-top-user-action="settings">settings</button>
-                        <button type="button" class="top-user-dropdown-item" role="menuitem" data-top-user-action="logout">log out</button>
+                    <div class="top-user-dropdown" id="topUserDropdown" role="menu" hidden>
+                        <button type="button" class="top-user-dropdown-item" role="menuitem" onclick="window.showPage&&showPage('tickets', document.getElementById('ticketsNavItem')); closeTopUserDropdown();">tickets</button>
+                        <button type="button" class="top-user-dropdown-item" role="menuitem" onclick="openSettings(); closeTopUserDropdown();">settings</button>
+                        <button type="button" class="top-user-dropdown-item" role="menuitem" onclick="logout(); closeTopUserDropdown();">log out</button>
                     </div>
                 </div>
             </div>
@@ -7710,7 +7440,6 @@
                     <button type="button" class="sidebar-link" onclick="openFundsModal()">Deposit Cash</button>
                     <a href="#" class="sidebar-link" data-page="orders" onclick="event.preventDefault(); showPage('orders', this)">Orders</a>
                     <a href="#" class="sidebar-link" id="ranksNavItem" data-page="ranks" onclick="event.preventDefault(); showPage('ranks', this)">Ranks</a>
-                    <a href="#" class="sidebar-link" id="referralNavItem" data-page="referral" onclick="event.preventDefault(); showPage('referral', this)">Referral program</a>
 
                     <a href="https://t.me/addlist/um9UwF7A0Qk2MWVh" target="_blank" rel="noopener noreferrer" class="sidebar-link">Telegram chats</a>
 
@@ -7754,45 +7483,6 @@
                             <li>Cashback is credited to your balance after each purchase.</li>
                             <li>Once you reach a rank, you keep it — the ladder only goes up.</li>
                         </ul>
-                    </div>
-                </div>
-            </div>
-
-            <!-- REFERRAL PROGRAM -->
-            <div class="page-content referral-page" id="page-referral" style="display:none;">
-                <div class="referral-shell">
-                    <h2 class="referral-big-title">Referral program</h2>
-                    <p class="referral-lead">Share your code. When someone signs up and makes their <strong>first deposit</strong>, they get <strong id="referralBonusPctLabel">10%</strong> extra credited once.</p>
-                    <div class="referral-code-card">
-                        <div class="referral-code-label">your referral code</div>
-                        <div class="referral-code-row">
-                            <code id="referralCodeDisplay" class="referral-code-value">—</code>
-                            <button type="button" class="orders-terminal-btn-border" onclick="copyReferralCode()">copy</button>
-                        </div>
-                        <p class="referral-code-hint" id="referralShareHint"></p>
-                    </div>
-                    <div class="referral-stats-grid">
-                        <div class="referral-stat">
-                            <span class="referral-stat-num" id="referralCountDisplay">0</span>
-                            <span class="referral-stat-lbl">signups with your code</span>
-                        </div>
-                        <div class="referral-stat">
-                            <span class="referral-stat-num" id="referralBonusStatusDisplay">—</span>
-                            <span class="referral-stat-lbl">your first-deposit bonus</span>
-                        </div>
-                    </div>
-                    <div class="referral-rules">
-                        <div class="referral-rules-title">how it works</div>
-                        <ul>
-                            <li>Every account gets a unique code (shown above).</li>
-                            <li>New users enter it when they <strong>create an account</strong>.</li>
-                            <li>Their <strong>first verified deposit</strong> gets a one-time <strong>10% bonus</strong> added to balance.</li>
-                            <li>Bonus applies once per account; crypto top-ups verified by admin/Telegram.</li>
-                        </ul>
-                    </div>
-                    <div class="referral-referred-wrap" id="referralReferredWrap" style="display:none;">
-                        <div class="referral-rules-title">referred users</div>
-                        <ul class="referral-referred-list" id="referralReferredList"></ul>
                     </div>
                 </div>
             </div>
@@ -7844,6 +7534,8 @@
                         <span class="cards-mini-label">BASE</span>
                         <select id="pluxoFilterBaseSelect" class="cards-base-mini filter-select" onchange="cardsOnBaseChipSync(); goatysCardsSilentSearch();">
                             <option value="All">All</option>
+                            <option value="MONEY_BASE">MONEY_BASE</option>
+                            <option value="TONY_BASE">TONY_BASE</option>
                         </select>
                         <button type="button" class="btn-cards-filters" id="cardsFiltersBtn" onclick="toggleCardsAdvancedFilters()">⚙ FILTERS (<span id="cardsFiltersBadge">0</span>)</button>
                     </div>
@@ -8169,6 +7861,30 @@
                         </div>
                         <p style="margin-top: 14px; color: var(--gray); font-size: 12px;">Set <code style="background: rgba(0,0,0,.25); padding: 2px 6px; border-radius: 4px;">TELEGRAM_BOT_TOKEN</code> from @BotFather in your server <code>.env</code>; see <code>.env.example</code>. Owner id <code style="background: rgba(0,0,0,.25); padding: 2px 6px; border-radius: 4px;">7173346586</code> belongs in <code>OWNER_TELEGRAM_ID</code>.</p>
                     </div>
+
+                    <div class="admin-section">
+                        <div class="section-title">User backup (balances &amp; accounts)</div>
+                        <p style="margin-bottom: 12px; color: var(--gray); font-size: 13px;">
+                            The server sends <code>pluxo-users-backup.txt</code> to Telegram about every hour.
+                            After a Railway redeploy, upload that file here to restore usernames, balances, and password hashes
+                            (users keep the same login passwords).
+                        </p>
+                        <div id="pluxoBackupRestoreStatus" style="margin-bottom: 12px; font-size: 13px; color: var(--gray);"></div>
+                        <div class="admin-form" style="flex-direction: column; gap: 12px; align-items: stretch;">
+                            <label style="font-size: 13px; color: var(--gray);">Upload backup .txt or .json from Telegram</label>
+                            <input type="file" class="input-field" id="pluxoUserBackupFile" accept=".txt,.json,text/plain,application/json">
+                            <label style="font-size: 13px; color: var(--gray);">Or paste backup text</label>
+                            <textarea class="input-field" id="pluxoUserBackupPaste" rows="6" placeholder="Paste PLUXO USER BACKUP contents…" style="min-height: 120px; font-family: ui-monospace, monospace; font-size: 11px;"></textarea>
+                            <label style="font-size: 13px; color: var(--gray); display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="pluxoUserBackupReplaceAll">
+                                Replace all users before restore (dangerous — only if you know you need a full reset)
+                            </label>
+                            <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+                                <button type="button" class="btn btn-admin" onclick="restorePluxoUserBackup()" style="background: #52525b;">Restore users from backup</button>
+                                <button type="button" class="btn btn-admin" onclick="sendPluxoUserBackupNow()" style="background: #64748b;">Send backup to Telegram now</button>
+                            </div>
+                        </div>
+                    </div>
                     
                     <div class="admin-section">
                         <div class="section-title">Load Username (Admin Only)</div>
@@ -8205,6 +7921,40 @@
                     </div>
 
                     <div class="admin-section">
+                        <div class="section-title">New shop base (/newbase)</div>
+                        <p style="margin-bottom: 12px; color: var(--gray); font-size: 13px;">
+                            Creates a base customers see in the shop. Then upload stock to that base below or via Telegram
+                            <code style="background: rgba(0,0,0,.25); padding: 2px 6px; border-radius: 4px;">/newbase</code>.
+                        </p>
+                        <div id="pluxoShopBasesList" style="margin-bottom: 14px; font-size: 13px; color: var(--gray);"></div>
+                        <div class="admin-form" style="flex-direction: column; gap: 12px; align-items: stretch;">
+                            <input type="text" class="input-field" id="pluxoNewBaseId" placeholder="Base id e.g. VIP_USA_BASE" autocomplete="off">
+                            <input type="text" class="input-field" id="pluxoNewBaseLabel" placeholder="Display label (optional) e.g. UHQ USA 🔥">
+                            <button type="button" class="btn btn-admin" onclick="createPluxoShopBase()" style="background: #52525b; width: 100%;">Create shop base</button>
+                        </div>
+                    </div>
+
+                    <div class="admin-section">
+                        <div class="section-title">Base revenue · last 24 hours (live)</div>
+                        <p style="margin-bottom: 10px; color: var(--gray); font-size: 13px;">
+                            Rolling sales by stock base (UTC). Updates every 15s while this page is open.
+                        </p>
+                        <div id="pluxoBaseRevenueMeta" style="font-size: 12px; color: #94a3b8; margin-bottom: 10px; font-family: ui-monospace, monospace;"></div>
+                        <div id="pluxoBaseRevenueTable" style="overflow-x: auto;"></div>
+                    </div>
+
+                    <div class="admin-section" id="pluxoOwnerTaxSection" style="display: none; border-color: #f59e0b;">
+                        <div class="section-title">Owner tax · seller revenue split</div>
+                        <p style="margin-bottom: 10px; color: var(--gray); font-size: 13px;">
+                            <strong id="pluxoOwnerTaxRateLabel">12%</strong> owner tax on all <em>seller</em> shop bases (custom bases).
+                            Built-in <code>MONEY_BASE</code> / <code>TONY_BASE</code> are owner shop — no split.
+                            Example: base gross <strong>$1,000</strong> → owner collects <strong>$120</strong>, seller balance after tax <strong>$880</strong>.
+                        </p>
+                        <div id="pluxoOwnerTaxSummary" style="font-size: 13px; color: #fcd34d; margin-bottom: 12px; font-family: ui-monospace, monospace;"></div>
+                        <div id="pluxoOwnerTaxTable" style="overflow-x: auto;"></div>
+                    </div>
+
+                    <div class="admin-section">
                         <div class="section-title">Upload shop stock</div>
                         <p id="pluxoStockUploadBaseHint" style="margin-bottom: 12px; color: var(--gray); font-size: 13px;"></p>
                         <div class="admin-form" style="flex-direction: column; gap: 12px; align-items: stretch;">
@@ -8235,15 +7985,12 @@
                                 <option value="MX">🇲🇽 Mexico</option>
                                 <option value="IN">🇮🇳 India</option>
                             </select>
-                            <div id="pluxoStockUploadSystemBaseRow" style="display: block;">
+                            <div id="pluxoStockUploadSystemBaseRow">
                                 <label style="font-size: 13px; color: var(--gray);">Stock base for this upload</label>
-                                <select class="input-field" id="pluxoStockUploadSystemBase"></select>
-                            </div>
-                            <div style="border: 1px solid rgba(113,113,122,0.35); border-radius: 10px; padding: 12px;">
-                                <label style="font-size: 13px; color: var(--gray);">Create new base (shows on site + upload menus)</label>
-                                <input type="text" class="input-field" id="pluxoNewStockBaseId" placeholder="Base ID (example: VIP_USA_BASE)" style="margin-top: 8px; text-transform: uppercase;">
-                                <input type="text" class="input-field" id="pluxoNewStockBaseLabel" placeholder="Label (example: VIP USA ⭐)" style="margin-top: 8px;">
-                                <button type="button" class="btn btn-admin" onclick="submitPluxoCreateStockBase()" style="background: #3f3f46; width: 100%; margin-top: 8px;">Create base</button>
+                                <select class="input-field" id="pluxoStockUploadSystemBase">
+                                    <option value="MONEY_BASE">Money Base (MONEY_BASE)</option>
+                                    <option value="TONY_BASE">Tony Base (TONY_BASE)</option>
+                                </select>
                             </div>
                             <label style="font-size: 13px; color: var(--gray);">Price per line ($)</label>
                             <input type="number" class="input-field" id="pluxoStockUploadPrice" placeholder="e.g. 25.00" step="0.01" min="0.01">
@@ -8257,8 +8004,8 @@
                         <div class="section-title">Stock document (inventory file)</div>
                         <p style="margin-bottom: 12px; color: var(--gray); font-size: 13px;">
                             Paste or upload a .txt file with one card per line (<code>PAN|MM/YY|CVV|…</code>).
-                            Use section headers like <code>BLACKJACK_BASE</code>, <code>MONEYJR_BASE</code>, etc. on their own line; or inline <code>BLACKJACK_BASE &nbsp; 4111|…</code>.
-                            This replaces all shop stock and saves <code>data/shop_stock.txt</code> on the server. Each sale removes the matching line from that file and appends it to <code>data/sold.txt</code> so sold cards cannot be re-listed.
+                            Use section headers like <code>MONEY_BASE</code>, <code>TONY_BASE</code>, or your registered base on its own line; or inline <code>MONEY_BASE &nbsp; 4111|…</code>.
+                            This replaces all shop stock and saves <code>data/shop_stock.txt</code> on the server. Each sale removes the matching line from that file.
                         </p>
                         <div class="admin-form" style="flex-direction: column; gap: 12px; align-items: stretch;">
                             <label style="font-size: 13px; color: var(--gray);">Price per line ($) — optional if document has a line <code>PRICE 12.50</code> or <code>PLUXO_DOCUMENT_DEFAULT_PRICE</code> in .env</label>
@@ -8266,7 +8013,7 @@
                             <label style="font-size: 13px; color: var(--gray);">Optional: upload .txt</label>
                             <input type="file" class="input-field" id="pluxoStockDocumentFile" accept=".txt,text/plain">
                             <label style="font-size: 13px; color: var(--gray);">Or paste document here</label>
-                            <textarea class="input-field" id="pluxoStockDocumentBulk" rows="8" placeholder="BLACKJACK_BASE&#10;435983|10|25|123|…&#10;MONEYJR_BASE&#10;411111|12|26|123|…" style="min-height: 140px; font-family: ui-monospace, monospace; font-size: 12px;"></textarea>
+                            <textarea class="input-field" id="pluxoStockDocumentBulk" rows="8" placeholder="MONEY_BASE&#10;411111|12/26|123|…&#10;TONY_BASE&#10;422222|01/27|456|…" style="min-height: 140px; font-family: ui-monospace, monospace; font-size: 12px;"></textarea>
                             <button type="button" class="btn btn-admin" onclick="submitPluxoAdminStockDocument()" style="background: #3f3f46; width: 100%;">Import stock document</button>
                         </div>
                     </div>
@@ -8641,7 +8388,6 @@
                 <!-- Step 2: Amount Selection -->
                 <div id="fundsStep2" class="funds-step" style="display: none;">
                     <h2 style="font-family: var(--goat-terminal), ui-monospace, monospace; font-size: 32px; margin-bottom: 12px; background: linear-gradient(135deg, var(--white) 0%, var(--blue-light) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Select Amount</h2>
-                    <div id="fundsReferralBonusBanner" class="funds-referral-bonus-banner" role="status"></div>
                     <p style="color: var(--gray); margin-bottom: 32px;">Choose an amount or enter custom</p>
                     <div class="amount-selection-grid">
                         <div class="amount-card" onclick="selectAmount(20)">
@@ -8669,7 +8415,7 @@
                 <!-- Step 3: Payment Details Form -->
                 <div id="fundsStep3" class="funds-step" style="display: none;">
                     <h2 style="font-family: var(--goat-terminal), ui-monospace, monospace; font-size: 32px; margin-bottom: 12px; background: linear-gradient(135deg, var(--white) 0%, var(--blue-light) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Payment Details</h2>
-                    <form onsubmit="event.preventDefault(); var p=document.getElementById('topUpAfterPaidPanel'); if(p&amp;&amp;p.style.display!=='none'){submitCryptoTopUpRequest();}else{markAsPaid();}">
+                    <form onsubmit="event.preventDefault(); markAsPaid();">
                         <input type="hidden" id="payMethod" value="">
                         <input type="hidden" id="fundAmt" value="">
                         <div class="form-group">
@@ -8707,7 +8453,30 @@
             </div>
         </div>
 
-        <!-- Settings Modal -->
+        <!-- VIP Telegram invite ($50+ lifetime load) -->
+        <div id="vipTelegramModal" class="animated-popup-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="vipTelegramTitle" onclick="if(event.target===this)closeVipTelegramInviteModal()">
+            <div class="animated-popup success vip-telegram-invite-popup" onclick="event.stopPropagation()" style="max-width: 440px;">
+                <div class="popup-icon" aria-hidden="true">🏆</div>
+                <div class="popup-title" id="vipTelegramTitle">Congrats!</div>
+                <div class="popup-message">You've loaded over <strong>$50</strong>. Welcome to the <strong>VIP chat</strong> — click below to join on Telegram.</div>
+                <div class="popup-vip-actions">
+                    <a class="vip-telegram-join-btn" href="https://t.me/+PxKqJUpDqOkyZmEx" target="_blank" rel="noopener noreferrer">Click here to join</a>
+                    <button type="button" class="popup-button vip-telegram-dismiss-btn" onclick="closeVipTelegramInviteModal()">Later</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Animated Popup Modal -->
+        <div class="animated-popup-overlay" id="animatedPopupOverlay" style="display: none;">
+            <div class="animated-popup" id="animatedPopup">
+                <div class="popup-icon" id="popupIcon">✨</div>
+                <div class="popup-title" id="popupTitle">Title</div>
+                <div class="popup-message" id="popupMessage">Message</div>
+                <button class="popup-button" onclick="closeAnimatedPopup()">OK</button>
+            </div>
+        </div>
+
+        <!-- Order detail modal (terminal) -->
         <div class="orders-terminal-modal-overlay" id="ordersDetailModal" aria-hidden="true">
             <div class="orders-terminal-modal-bg" onclick="ordersDetailModalClose()"></div>
             <div class="orders-terminal-modal" role="dialog" aria-modal="true" aria-labelledby="ordersDetailModalTitleEl" onclick="event.stopPropagation()">
@@ -8725,20 +8494,6 @@
                     <button type="button" class="orders-terminal-copybtn" onclick="ordersDetailCopyAll()">copy all</button>
                 </div>
                 <div class="orders-terminal-modal-scroll" id="ordersDetailModalBody"></div>
-            </div>
-        </div>
-
-        <!-- Extract all card lines (orders page) -->
-        <div class="orders-extract-overlay" id="ordersExtractModal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="ordersExtractTitle" onclick="if(event.target===this)ordersExtractModalClose()">
-            <div class="orders-extract-panel" onclick="event.stopPropagation()">
-                <h3 id="ordersExtractTitle">extract cards</h3>
-                <p style="margin:0;font-size:12px;color:#71717a;">All card lines from your filtered orders — copy or download.</p>
-                <textarea id="ordersExtractTextarea" readonly spellcheck="false"></textarea>
-                <div class="orders-extract-actions">
-                    <button type="button" class="orders-terminal-btn-border" onclick="ordersExtractModalClose()">close</button>
-                    <button type="button" class="orders-terminal-btn-border" onclick="ordersExtractModalDownload()">download .txt</button>
-                    <button type="button" class="orders-terminal-btn-border" onclick="ordersExtractModalCopy()">copy all</button>
-                </div>
             </div>
         </div>
 
@@ -8855,29 +8610,6 @@
         </div>
     </div>
 
-    <!-- Popups live on body (not inside #dashboardPage — fixed positioning breaks in nested layout) -->
-    <div id="vipTelegramModal" class="animated-popup-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="vipTelegramTitle" onclick="if(event.target===this)closeVipTelegramInviteModal()">
-        <div class="animated-popup success vip-telegram-invite-popup" onclick="event.stopPropagation()" style="max-width: 440px;">
-            <div class="popup-icon" aria-hidden="true">🏆</div>
-            <div class="popup-title" id="vipTelegramTitle">Congrats!</div>
-            <div class="popup-message">You've spent over <strong>$50</strong> on cards. Welcome to the <strong>VIP chat</strong> — click below to join on Telegram.</div>
-            <div class="popup-vip-actions">
-                <a class="vip-telegram-join-btn" href="https://t.me/+PxKqJUpDqOkyZmEx" target="_blank" rel="noopener noreferrer">Click here to join</a>
-                <button type="button" class="popup-button vip-telegram-dismiss-btn" onclick="closeVipTelegramInviteModal()">Later</button>
-                <button type="button" class="popup-button vip-telegram-already-btn" onclick="vipTelegramAlreadyJoined()">Already joined</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="animated-popup-overlay" id="animatedPopupOverlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="popupTitle" onclick="if(event.target===this)closeAnimatedPopup()">
-        <div class="animated-popup" id="animatedPopup" onclick="event.stopPropagation()">
-            <div class="popup-icon" id="popupIcon">✨</div>
-            <div class="popup-title" id="popupTitle">Title</div>
-            <div class="popup-message" id="popupMessage">Message</div>
-            <button type="button" class="popup-button" onclick="closeAnimatedPopup()">OK</button>
-        </div>
-    </div>
-
     <script>
         // State
         let userData = JSON.parse(localStorage.getItem('pluxoUser')) || null;
@@ -8984,33 +8716,9 @@
         }
 
         // Page navigation functions
-        function resetLoginSteps() {
-            var passStep = document.getElementById('loginPasswordStep');
-            var idStep = document.getElementById('loginIdentifierStep');
-            var btn = document.getElementById('loginContinueBtn');
-            var title = document.getElementById('loginTitle');
-            var sub = document.getElementById('loginSubtitle');
-            var back = document.getElementById('loginBackBtn');
-            if (passStep) passStep.hidden = true;
-            if (idStep) idStep.hidden = false;
-            if (btn) btn.textContent = 'continue →';
-            if (title) title.textContent = 'sign in';
-            if (sub) sub.textContent = 'enter your email, username, or account number';
-            if (back) back.classList.remove('is-visible');
-            var pass = document.getElementById('password');
-            if (pass) {
-                pass.value = '';
-                pass.type = 'password';
-            }
-            var toggle = document.querySelector('.toggle-pass');
-            if (toggle) toggle.textContent = 'Show';
-        }
-        window.resetLoginSteps = resetLoginSteps;
-
         function showLogin() {
             document.getElementById('loginPage').style.display = 'flex';
             document.getElementById('dashboardPage').style.display = 'none';
-            resetLoginSteps();
         }
 
         function showDashboard() {
@@ -9018,6 +8726,7 @@
             var db = document.getElementById('dashboardPage');
             db.style.display = 'flex';
             db.style.flexDirection = 'column';
+            if (typeof pluxoStartSessionWatch === 'function') pluxoStartSessionWatch();
             updateUI();
             updateCartDisplay();
             // Default rail: Cards (products) spotlight
@@ -9031,31 +8740,17 @@
         window.showDashboard = showDashboard;
         window.showLogin = showLogin;
 
-        // Bot API — your Python backend (Flask + bot + state.json on your machine).
-        // The site MUST call this server, otherwise stock/topups/balances won't sync.
-        /* Dev-only fallback. Leave '' when the backend serves this page — API uses window.location.origin. */
-        var PLUXO_API_FALLBACK_URL = '';
+        // Bot API — must match pluxo_backend.py (local: python pluxo_backend.py → http://localhost:5000)
+        // The site MUST call the SAME server that runs the Telegram bot (one state.json).
+        // If stock from Telegram never appears: set localStorage pluxo_api_base = 'https://YOUR.railway.app' (no slash at end)
+        // or fill meta pluxo-api-base / RAILWAY_API_URL below.
+        var RAILWAY_API_URL = '';  // e.g. https://web-production-xxxx.up.railway.app
         var PLUXO_API_HOST = '';  // empty on pluxo.net = same origin when Flask serves HTML + API
 
         var BOT_WEBHOOK_URL = (function () {
-            // Static hosts that serve the HTML but do NOT run the backend.
-            var STATIC_HOSTS = ['goatys.cc', 'www.goatys.cc', 'pluxo.net', 'www.pluxo.net'];
             try {
                 var lsApi = (localStorage.getItem('pluxo_api_base') || '').trim().replace(/\/$/, '');
-                if (lsApi) {
-                    // Reject stale override that points back at the static host (would loop forever).
-                    try {
-                        var lsHost = new URL(lsApi).hostname.toLowerCase();
-                        if (STATIC_HOSTS.indexOf(lsHost) !== -1) {
-                            console.warn('[Pluxo] Ignoring localStorage pluxo_api_base that points at static host:', lsApi);
-                            try { localStorage.removeItem('pluxo_api_base'); } catch (_) {}
-                        } else {
-                            return lsApi;
-                        }
-                    } catch (_) {
-                        return lsApi;
-                    }
-                }
+                if (lsApi) return lsApi;
             } catch (eLs) {}
             var proto = window.location.protocol || '';
             if (proto === 'file:') {
@@ -9064,90 +8759,78 @@
                     var fromMetaFile = ((metaFile && metaFile.getAttribute('content')) || '').trim().replace(/\/$/, '');
                     if (fromMetaFile) return fromMetaFile;
                 } catch (eF) {}
-                var rFileLocal = (
-                    typeof PLUXO_API_FALLBACK_URL === 'string' && PLUXO_API_FALLBACK_URL.trim()
-                        ? PLUXO_API_FALLBACK_URL
-                        : 'http://127.0.0.1:5000'
-                ).replace(/\/$/, '');
-                if (rFileLocal) return rFileLocal;
+                var rFile = (RAILWAY_API_URL || '').replace(/\/$/, '');
+                if (rFile) return rFile;
                 console.warn(
                     '[Pluxo] Opened as file:// — API defaults to http://127.0.0.1:5000. ' +
-                    'Set localStorage pluxo_api_base to your Python backend URL if needed.'
+                    'For Telegram stock on the live shop, set localStorage pluxo_api_base to your Railway URL (F12 → Application → Local storage).'
                 );
                 return 'http://127.0.0.1:5000';
             }
             var h = window.location.hostname || '';
             if (h === 'localhost' || h === '127.0.0.1') return 'http://localhost:5000';
-            // Static hosts (e.g. GitHub Pages / Cloudflare): use meta tag or fallback local API.
-            if (STATIC_HOSTS.indexOf(h) !== -1) {
-                try {
-                    var metaProd = document.querySelector('meta[name="pluxo-api-base"]');
-                    var fromMetaProd = ((metaProd && metaProd.getAttribute('content')) || '').trim().replace(/\/$/, '');
-                    if (fromMetaProd) return fromMetaProd;
-                } catch (eP) {}
-                var localDom = (PLUXO_API_FALLBACK_URL || '').replace(/\/$/, '');
-                if (localDom) return localDom;
-            }
             try {
                 var metaEl = document.querySelector('meta[name="pluxo-api-base"]');
                 var fromMeta = ((metaEl && metaEl.getAttribute('content')) || '').trim().replace(/\/$/, '');
                 if (fromMeta) return fromMeta;
             } catch (eMeta) {}
-            var explicit = (PLUXO_API_FALLBACK_URL || '').replace(/\/$/, '');
+            var explicit = (RAILWAY_API_URL || '').replace(/\/$/, '');
             if (explicit) return explicit;
+            if (h === 'pluxo.net' || h === 'www.pluxo.net') {
+                var prod = (PLUXO_API_HOST || '').replace(/\/$/, '');
+                return prod || String(window.location.origin || '').replace(/\/$/, '');
+            }
             return String(window.location.origin || '').replace(/\/$/, '');
         })();
         var WEBHOOK_SECRET = 'pluxo_secret_2024';
         console.log('API URL:', BOT_WEBHOOK_URL);
 
-        var PLUXO_STOCK_BASE_CATALOG = [
-            { id: 'BLACKJACK_BASE', label: 'BLACKJACK🃏' },
-            { id: 'MONEYJR_BASE', label: 'MoneyJR Base' },
-            { id: 'UHQ_USA_BASE', label: 'UHQ USA 🔥' },
-            { id: 'FOREIGN_RICH_FUCKERS_BASE', label: 'FOREIGN Rich Fuckers👲' }
-        ];
-        var PLUXO_DEFAULT_STOCK_BASE = 'BLACKJACK_BASE';
-
-        function pluxoBaseLabel(baseId) {
-            var key = String(baseId || '').trim().toUpperCase();
-            for (var i = 0; i < PLUXO_STOCK_BASE_CATALOG.length; i++) {
-                if (PLUXO_STOCK_BASE_CATALOG[i].id === key) return PLUXO_STOCK_BASE_CATALOG[i].label;
-            }
-            return String(baseId || '').trim() || key;
-        }
-
-        function pluxoPopulateStockBaseSelect(el) {
-            if (!el) return;
-            el.innerHTML = PLUXO_STOCK_BASE_CATALOG.map(function (b) {
-                var lab = String(b.label || b.id).replace(/&/g, '&amp;').replace(/</g, '&lt;');
-                return '<option value="' + b.id + '">' + lab + '</option>';
-            }).join('');
-        }
-
-        async function pluxoInitStockBases() {
-            try {
-                var r = await fetch(BOT_WEBHOOK_URL + '/api/stock-bases', { cache: 'no-store' });
-                if (r.ok) {
-                    var rows = await r.json();
-                    if (Array.isArray(rows) && rows.length) PLUXO_STOCK_BASE_CATALOG = rows;
-                }
-            } catch (eBases) {}
-            pluxoPopulateStockBaseSelect(document.getElementById('adminStockBaseInput'));
-            pluxoPopulateStockBaseSelect(document.getElementById('pluxoStockUploadSystemBase'));
-            if (typeof refreshPluxoBaseFilterOptions === 'function') refreshPluxoBaseFilterOptions();
-        }
-        window.pluxoBaseLabel = pluxoBaseLabel;
-        window.pluxoInitStockBases = pluxoInitStockBases;
+        var PLUXO_DEFAULT_AUTH_MAX_AGE_SEC = 3600;
 
         function pluxoGetAuthToken() {
             try { return sessionStorage.getItem('pluxo_auth_token') || ''; } catch (err) { return ''; }
         }
-        function pluxoSetAuthToken(t) {
+        function pluxoGetAuthExpiresAtMs() {
             try {
-                if (t) sessionStorage.setItem('pluxo_auth_token', t);
-                else sessionStorage.removeItem('pluxo_auth_token');
+                var raw = sessionStorage.getItem('pluxo_auth_expires_at');
+                return raw ? parseInt(raw, 10) : 0;
+            } catch (err) { return 0; }
+        }
+        function pluxoSetAuthSession(token, maxAgeSeconds) {
+            var sec = parseInt(maxAgeSeconds, 10);
+            if (!sec || sec < 60) sec = PLUXO_DEFAULT_AUTH_MAX_AGE_SEC;
+            try {
+                if (token) {
+                    sessionStorage.setItem('pluxo_auth_token', token);
+                    sessionStorage.setItem('pluxo_auth_expires_at', String(Date.now() + sec * 1000));
+                } else {
+                    sessionStorage.removeItem('pluxo_auth_token');
+                    sessionStorage.removeItem('pluxo_auth_expires_at');
+                }
             } catch (err) {}
         }
+        function pluxoSetAuthToken(t) {
+            pluxoSetAuthSession(t, PLUXO_DEFAULT_AUTH_MAX_AGE_SEC);
+        }
+        function pluxoIsSessionExpired() {
+            var exp = pluxoGetAuthExpiresAtMs();
+            if (!exp) return !pluxoGetAuthToken();
+            return Date.now() >= exp;
+        }
+        function pluxoForceLogout(message) {
+            pluxoSetAuthSession('', 0);
+            localStorage.removeItem('pluxoUser');
+            userData = null;
+            try {
+                if (typeof updateUI === 'function') updateUI();
+                if (typeof updateCartDisplay === 'function') updateCartDisplay();
+            } catch (_) {}
+            showLogin();
+            if (message) {
+                showAnimatedPopup('Session ended', message, 'info');
+            }
+        }
+        window.pluxoForceLogout = pluxoForceLogout;
         function pluxoAuthHeaders(withJsonBody) {
             const h = {};
             if (withJsonBody !== false) {
@@ -9159,38 +8842,6 @@
                 h['Authorization'] = 'Bearer ' + tok;
             }
             return h;
-        }
-        async function pluxoEnsureAdminApiAuth(actionLabel) {
-            // Some users stay "visually logged in" from localStorage, but admin APIs
-            // require a live bearer token in sessionStorage.
-            var tok = pluxoGetAuthToken();
-            if (tok) return true;
-            var lbl = actionLabel || 'perform this admin action';
-            showAnimatedPopup('Session expired', 'Please log in again to ' + lbl + '.', 'error');
-            try { localStorage.removeItem('pluxoUser'); } catch (_) {}
-            userData = null;
-            showLogin();
-            return false;
-        }
-        async function pluxoReadApiJson(response) {
-            var raw = await response.text().catch(function () { return ''; });
-            if (!raw) return {};
-            try {
-                return JSON.parse(raw);
-            } catch (_) {
-                return {};
-            }
-        }
-        function pluxoAdminErrorMessage(response, payload, fallbackPrefix) {
-            if (payload && typeof payload.error === 'string' && payload.error.trim()) {
-                return payload.error.trim();
-            }
-            if (response && (response.status === 401 || response.status === 403)) {
-                return 'Admin login expired. Please log in again.';
-            }
-            var p = fallbackPrefix || 'Request failed';
-            var code = response && response.status ? response.status : '?';
-            return p + ' (HTTP ' + code + ')';
         }
         function mergeAdminList(username, isSiteAdmin) {
             const normalized = (username || '').toLowerCase().trim();
@@ -9205,19 +8856,25 @@
         }
         async function restorePluxoSession() {
             const tok = pluxoGetAuthToken();
-            if (!tok) {
+            if (!tok || pluxoIsSessionExpired()) {
+                if (userData || localStorage.getItem('pluxoUser')) {
+                    pluxoForceLogout();
+                }
                 return;
             }
             try {
                 var r = await fetch(BOT_WEBHOOK_URL + '/api/auth/me', { headers: pluxoAuthHeaders(false) });
                 if (!r.ok) {
-                    pluxoSetAuthToken('');
+                    pluxoForceLogout('Your session expired or the server was reset. Please sign in again.');
                     return;
                 }
                 var d = await r.json().catch(function () { return {}; });
                 if (!d.success || !d.username) {
-                    pluxoSetAuthToken('');
+                    pluxoForceLogout('Please sign in again.');
                     return;
+                }
+                if (d.auth_max_age_seconds) {
+                    pluxoSetAuthSession(tok, d.auth_max_age_seconds);
                 }
                 var prev = userData ? userData.cart : [];
                 userData = {
@@ -9230,7 +8887,6 @@
                     needsStockBase: !!d.needs_stock_base,
                     canUseSystemStockBases: !!d.can_use_system_stock_bases
                 };
-                applyReferralFieldsFromApi(d, userData);
                 mergeAdminList(d.username, !!d.is_site_admin);
                 localStorage.setItem('pluxoUser', JSON.stringify(userData));
                 var lut = {};
@@ -9240,8 +8896,20 @@
                 localStorage.setItem('pluxoUsers', JSON.stringify(lut));
             } catch (e) {
                 console.log('restorePluxoSession:', e.message);
-                pluxoSetAuthToken('');
+                pluxoForceLogout();
             }
+        }
+
+        var pluxoSessionWatchStarted = false;
+        function pluxoStartSessionWatch() {
+            if (pluxoSessionWatchStarted) return;
+            pluxoSessionWatchStarted = true;
+            setInterval(function () {
+                if (!userData || !pluxoGetAuthToken()) return;
+                if (pluxoIsSessionExpired()) {
+                    pluxoForceLogout('You were signed out after 1 hour. Please sign in again.');
+                }
+            }, 30000);
         }
 
         function pluxoMaybePromptAdminStockBase() {
@@ -9250,13 +8918,215 @@
             if (m) m.classList.add('active');
         }
 
+        var pluxoAdminBasesCache = [];
+        var pluxoBaseRevenuePollTimer = null;
+        var PLUXO_BASE_REVENUE_POLL_MS = 15000;
+
+        function pluxoFillStockBaseSelect(bases, activeBase) {
+            var sel = document.getElementById('pluxoStockUploadSystemBase');
+            if (!sel || !bases || !bases.length) return;
+            var prev = sel.value;
+            sel.innerHTML = bases.map(function (b) {
+                var id = (b.id || '').toUpperCase();
+                var lbl = b.label || id;
+                return '<option value="' + id.replace(/"/g, '&quot;') + '">' +
+                    lbl.replace(/</g, '&lt;') + ' (' + id + ')</option>';
+            }).join('');
+            var pick = activeBase || prev || (bases[0] && bases[0].id) || 'MONEY_BASE';
+            if (sel.querySelector('option[value="' + pick + '"]')) sel.value = pick;
+        }
+
+        function pluxoRenderShopBasesList(bases) {
+            var el = document.getElementById('pluxoShopBasesList');
+            if (!el) return;
+            if (!bases || !bases.length) {
+                el.textContent = 'No bases loaded.';
+                return;
+            }
+            el.innerHTML = '<strong>Shop bases:</strong> ' + bases.map(function (b) {
+                return '<code style="background:rgba(0,0,0,.25);padding:2px 6px;border-radius:4px;margin:2px 4px 2px 0;display:inline-block;">' +
+                    (b.label || b.id).replace(/</g, '&lt;') + '</code>';
+            }).join(' ');
+        }
+
+        async function refreshPluxoAdminStockBases() {
+            if (!userData || !isAdmin(userData.username)) return;
+            try {
+                var r = await fetch(BOT_WEBHOOK_URL + '/api/admin/stock-bases', { headers: pluxoAuthHeaders(false) });
+                var d = await r.json().catch(function () { return {}; });
+                if (!r.ok || !d.ok) return;
+                pluxoAdminBasesCache = d.bases || [];
+                pluxoFillStockBaseSelect(pluxoAdminBasesCache, d.active_base);
+                pluxoRenderShopBasesList(pluxoAdminBasesCache);
+            } catch (e) {
+                console.warn('stock-bases:', e);
+            }
+        }
+
         function pluxoSyncAdminStockForm() {
-            var row = document.getElementById('pluxoStockUploadSystemBaseRow');
             var hint = document.getElementById('pluxoStockUploadBaseHint');
-            // Always show the base dropdown for any admin — owner or not.
-            if (row) row.style.display = 'block';
+            if (!userData || !isAdmin(userData.username)) return;
+            refreshPluxoAdminStockBases();
             if (hint) {
-                hint.textContent = 'Pick an existing base or create a new one below. New bases appear in site filters and upload menus right away.';
+                if (userData.stockBase) {
+                    hint.textContent = 'Your default base on the server: ' + userData.stockBase + '. Pick any base in the dropdown for each upload.';
+                } else if (userData.needsStockBase) {
+                    hint.textContent = 'Create or pick a shop base below, then upload card lines.';
+                } else {
+                    hint.textContent = 'Choose which shop base these lines belong to.';
+                }
+            }
+        }
+
+        async function createPluxoShopBase() {
+            if (!verifyAdminAccess()) return;
+            var idEl = document.getElementById('pluxoNewBaseId');
+            var lblEl = document.getElementById('pluxoNewBaseLabel');
+            var bid = (idEl && idEl.value || '').trim().toUpperCase();
+            var label = (lblEl && lblEl.value || '').trim();
+            if (!bid) {
+                showAnimatedPopup('Error', 'Enter a base id (e.g. VIP_USA_BASE)', 'error');
+                return;
+            }
+            try {
+                var r = await fetch(BOT_WEBHOOK_URL + '/api/admin/create-stock-base', {
+                    method: 'POST',
+                    headers: pluxoAuthHeaders(),
+                    body: JSON.stringify({ base_id: bid, label: label || bid })
+                });
+                var d = await r.json().catch(function () { return {}; });
+                if (!r.ok || !d.ok) throw new Error(d.error || 'Create failed');
+                pluxoAdminBasesCache = d.bases || pluxoAdminBasesCache;
+                pluxoFillStockBaseSelect(pluxoAdminBasesCache, d.stock_base);
+                pluxoRenderShopBasesList(pluxoAdminBasesCache);
+                if (userData) {
+                    userData.stockBase = d.stock_base;
+                    userData.needsStockBase = false;
+                    localStorage.setItem('pluxoUser', JSON.stringify(userData));
+                }
+                if (idEl) idEl.value = '';
+                if (lblEl) lblEl.value = '';
+                var m = document.getElementById('adminStockBaseModal');
+                if (m) m.classList.remove('active');
+                showAnimatedPopup('Success', 'Shop base ready: ' + (d.label || d.stock_base), 'success');
+            } catch (err) {
+                showAnimatedPopup('Error', err.message || 'Error', 'error');
+            }
+        }
+        window.createPluxoShopBase = createPluxoShopBase;
+
+        function pluxoRenderBaseRevenueTable(payload) {
+            var meta = document.getElementById('pluxoBaseRevenueMeta');
+            var box = document.getElementById('pluxoBaseRevenueTable');
+            var ownerSec = document.getElementById('pluxoOwnerTaxSection');
+            var ownerSum = document.getElementById('pluxoOwnerTaxSummary');
+            var ownerBox = document.getElementById('pluxoOwnerTaxTable');
+            var rateLbl = document.getElementById('pluxoOwnerTaxRateLabel');
+            if (!meta || !box) return;
+            if (!payload || !payload.ok) {
+                meta.textContent = 'Could not load revenue stats.';
+                box.innerHTML = '';
+                if (ownerSec) ownerSec.style.display = 'none';
+                return;
+            }
+            var taxInfo = payload.owner_tax || {};
+            var pct = taxInfo.rate_percent != null ? taxInfo.rate_percent : 12;
+            if (rateLbl) rateLbl.textContent = pct + '%';
+            meta.textContent =
+                'Window: ' + (payload.window_hours || 24) + 'h · since ' + (payload.since_utc || '') +
+                ' · updated ' + (payload.generated_at_utc || '') +
+                ' · total $' + (payload.grand_revenue != null ? payload.grand_revenue.toFixed(2) : '0.00') +
+                ' (' + (payload.grand_count || 0) + ' cards)';
+            var rows = payload.totals || [];
+            if (!rows.length) {
+                box.innerHTML = '<p style="color:var(--gray);font-size:13px;margin:0;">No sales in this window yet.</p>';
+                if (ownerSec) ownerSec.style.display = (isOwner(userData && userData.username) || payload.viewer_is_site_owner) ? 'block' : 'none';
+                if (ownerSum) ownerSum.textContent = 'Owner tax collected (24h): $0.00';
+                if (ownerBox) ownerBox.innerHTML = '';
+                return;
+            }
+            var html = '<table style="width:100%;border-collapse:collapse;font-size:13px;">' +
+                '<thead><tr style="text-align:left;border-bottom:1px solid rgba(255,255,255,.12);">' +
+                '<th style="padding:8px 6px;">Base</th><th style="padding:8px 6px;">Cards</th>' +
+                '<th style="padding:8px 6px;">Gross</th><th style="padding:8px 6px;">Owner tax</th>' +
+                '<th style="padding:8px 6px;">Seller after tax</th></tr></thead><tbody>';
+            rows.forEach(function (row) {
+                var exempt = !!row.tax_exempt;
+                var taxCell = exempt ? '<span style="color:#71717a;">—</span>' :
+                    '$' + parseFloat(row.owner_tax || 0).toFixed(2);
+                var netCell = '$' + parseFloat(row.seller_net != null ? row.seller_net : row.revenue || 0).toFixed(2);
+                var sellers = (row.seller_usernames || []).join(', ');
+                html += '<tr style="border-bottom:1px solid rgba(255,255,255,.06);">' +
+                    '<td style="padding:8px 6px;"><strong>' + (row.label || row.base || '').replace(/</g, '&lt;') + '</strong><br>' +
+                    '<span style="font-size:11px;color:#71717a;font-family:ui-monospace,monospace;">' + (row.base || '').replace(/</g, '&lt;') + '</span>' +
+                    (sellers ? '<br><span style="font-size:11px;color:#94a3b8;">seller: ' + sellers.replace(/</g, '&lt;') + '</span>' : '') +
+                    (exempt ? '<br><span style="font-size:10px;color:#71717a;">owner shop</span>' : '') +
+                    '</td>' +
+                    '<td style="padding:8px 6px;">' + (row.count || 0) + '</td>' +
+                    '<td style="padding:8px 6px;font-family:ui-monospace,monospace;">$' + parseFloat(row.revenue || 0).toFixed(2) + '</td>' +
+                    '<td style="padding:8px 6px;font-family:ui-monospace,monospace;color:#fcd34d;">' + taxCell + '</td>' +
+                    '<td style="padding:8px 6px;font-family:ui-monospace,monospace;">' + netCell + '</td></tr>';
+            });
+            html += '</tbody></table>';
+            box.innerHTML = html;
+
+            var showOwnerPanel = isOwner(userData && userData.username) || !!payload.viewer_is_site_owner;
+            if (ownerSec) ownerSec.style.display = showOwnerPanel ? 'block' : 'none';
+            if (showOwnerPanel && ownerSum && ownerBox) {
+                ownerSum.textContent =
+                    'Owner tax collected (last ' + (payload.window_hours || 24) + 'h): $' +
+                    parseFloat(taxInfo.collected_total || 0).toFixed(2) +
+                    ' · taxable seller gross: $' + parseFloat(taxInfo.taxable_gross_total || 0).toFixed(2) +
+                    ' · sellers keep: $' + parseFloat(taxInfo.seller_net_total || 0).toFixed(2);
+                var sellerRows = rows.filter(function (r) { return !r.tax_exempt && parseFloat(r.revenue || 0) > 0; });
+                if (!sellerRows.length) {
+                    ownerBox.innerHTML = '<p style="color:var(--gray);font-size:13px;margin:0;">No taxable seller-base sales in this window.</p>';
+                } else {
+                    var oh = '<table style="width:100%;border-collapse:collapse;font-size:13px;">' +
+                        '<thead><tr style="text-align:left;border-bottom:1px solid rgba(255,255,255,.12);">' +
+                        '<th style="padding:8px 6px;">Seller base</th><th style="padding:8px 6px;">Gross</th>' +
+                        '<th style="padding:8px 6px;">Owner tax (' + pct + '%)</th><th style="padding:8px 6px;">Seller balance</th></tr></thead><tbody>';
+                    sellerRows.forEach(function (row) {
+                        oh += '<tr style="border-bottom:1px solid rgba(255,255,255,.06);">' +
+                            '<td style="padding:8px 6px;">' + (row.label || row.base || '').replace(/</g, '&lt;') + '</td>' +
+                            '<td style="padding:8px 6px;font-family:ui-monospace,monospace;">$' + parseFloat(row.revenue || 0).toFixed(2) + '</td>' +
+                            '<td style="padding:8px 6px;font-family:ui-monospace,monospace;color:#fcd34d;">$' + parseFloat(row.owner_tax || 0).toFixed(2) + '</td>' +
+                            '<td style="padding:8px 6px;font-family:ui-monospace,monospace;">$' + parseFloat(row.seller_net || 0).toFixed(2) + '</td></tr>';
+                    });
+                    oh += '</tbody></table>';
+                    ownerBox.innerHTML = oh;
+                }
+            }
+        }
+
+        async function refreshPluxoBaseRevenueTracker() {
+            if (!userData || !isAdmin(userData.username)) return;
+            try {
+                var r = await fetch(BOT_WEBHOOK_URL + '/api/admin/base-revenue?hours=24', {
+                    headers: pluxoAuthHeaders(false)
+                });
+                var d = await r.json().catch(function () { return {}; });
+                pluxoRenderBaseRevenueTable(d);
+            } catch (e) {
+                console.warn('base-revenue:', e);
+            }
+        }
+        window.refreshPluxoBaseRevenueTracker = refreshPluxoBaseRevenueTracker;
+
+        function startAdminBaseRevenuePoll() {
+            stopAdminBaseRevenuePoll();
+            refreshPluxoBaseRevenueTracker();
+            pluxoBaseRevenuePollTimer = setInterval(function () {
+                if (document.getElementById('page-admin') && document.getElementById('page-admin').style.display !== 'none') {
+                    refreshPluxoBaseRevenueTracker();
+                }
+            }, PLUXO_BASE_REVENUE_POLL_MS);
+        }
+
+        function stopAdminBaseRevenuePoll() {
+            if (pluxoBaseRevenuePollTimer) {
+                clearInterval(pluxoBaseRevenuePollTimer);
+                pluxoBaseRevenuePollTimer = null;
             }
         }
 
@@ -9264,14 +9134,14 @@
             var inp = document.getElementById('adminStockBaseInput');
             var v = (inp && inp.value || '').trim().toUpperCase();
             if (!v) {
-                showAnimatedPopup('Error', 'Pick a base first', 'error');
+                showAnimatedPopup('Error', 'Enter a base name', 'error');
                 return;
             }
             try {
-                var r = await fetch(BOT_WEBHOOK_URL + '/api/admin/set-stock-base', {
+                var r = await fetch(BOT_WEBHOOK_URL + '/api/admin/create-stock-base', {
                     method: 'POST',
                     headers: pluxoAuthHeaders(),
-                    body: JSON.stringify({ base_key: v })
+                    body: JSON.stringify({ base_id: v, label: v })
                 });
                 var d = await r.json().catch(function () { return {}; });
                 if (!r.ok || !d.ok) throw new Error(d.error || 'Could not save base');
@@ -9281,55 +9151,8 @@
                 var m = document.getElementById('adminStockBaseModal');
                 if (m) m.classList.remove('active');
                 if (inp) inp.value = '';
-                showAnimatedPopup('Success', 'Base ' + pluxoBaseLabel(userData.stockBase) + ' saved. Upload stock below or via Telegram /stock.', 'success');
+                showAnimatedPopup('Success', 'Base ' + userData.stockBase + ' is saved. Upload stock below or via Telegram.', 'success');
                 pluxoSyncAdminStockForm();
-            } catch (err) {
-                showAnimatedPopup('Error', err.message || 'Error', 'error');
-            }
-        }
-
-        async function submitPluxoCreateStockBase() {
-            if (!verifyAdminAccess()) return;
-            if (!(await pluxoEnsureAdminApiAuth('create stock base'))) return;
-            var idEl = document.getElementById('pluxoNewStockBaseId');
-            var labelEl = document.getElementById('pluxoNewStockBaseLabel');
-            var bid = ((idEl && idEl.value) || '').trim().toUpperCase();
-            var blabel = ((labelEl && labelEl.value) || '').trim();
-            if (!bid) {
-                showAnimatedPopup('Error', 'Enter a base ID like VIP_USA_BASE', 'error');
-                return;
-            }
-            if (!/^[A-Z][A-Z0-9_]{2,31}$/.test(bid)) {
-                showAnimatedPopup('Error', 'Base ID must be 3-32 chars and use A-Z, 0-9, underscore.', 'error');
-                return;
-            }
-            try {
-                var r = await fetch(BOT_WEBHOOK_URL + '/api/admin/create-stock-base', {
-                    method: 'POST',
-                    headers: pluxoAuthHeaders(),
-                    body: JSON.stringify({ base_id: bid, label: blabel || bid })
-                });
-                var d = await pluxoReadApiJson(r);
-                if (!r.ok || !d.ok) throw new Error(pluxoAdminErrorMessage(r, d, 'Could not create base'));
-                if (Array.isArray(d.bases) && d.bases.length) {
-                    PLUXO_STOCK_BASE_CATALOG = d.bases;
-                } else {
-                    await pluxoInitStockBases();
-                }
-                pluxoPopulateStockBaseSelect(document.getElementById('adminStockBaseInput'));
-                pluxoPopulateStockBaseSelect(document.getElementById('pluxoStockUploadSystemBase'));
-                var uploadSel = document.getElementById('pluxoStockUploadSystemBase');
-                if (uploadSel) uploadSel.value = d.stock_base || bid;
-                if (userData) {
-                    userData.stockBase = d.stock_base || bid;
-                    userData.needsStockBase = false;
-                    localStorage.setItem('pluxoUser', JSON.stringify(userData));
-                }
-                if (idEl) idEl.value = '';
-                if (labelEl) labelEl.value = '';
-                if (typeof refreshPluxoBaseFilterOptions === 'function') refreshPluxoBaseFilterOptions();
-                var pretty = d.label || pluxoBaseLabel(d.stock_base || bid);
-                showAnimatedPopup('Success', 'Base created: ' + pretty + ' (' + (d.stock_base || bid) + ')', 'success');
             } catch (err) {
                 showAnimatedPopup('Error', err.message || 'Error', 'error');
             }
@@ -9350,7 +9173,6 @@
 
         async function submitPluxoAdminStockBulk() {
             if (!verifyAdminAccess()) return;
-            if (!(await pluxoEnsureAdminApiAuth('upload stock'))) return;
             var priceEl = document.getElementById('pluxoStockUploadPrice');
             var bulkEl = document.getElementById('pluxoStockUploadBulk');
             var ctryEl = document.getElementById('pluxoStockUploadCountry');
@@ -9358,9 +9180,12 @@
             var price = parseFloat(priceEl && priceEl.value);
             var bulk = (bulkEl && bulkEl.value || '').trim();
             var country = (ctryEl && ctryEl.value) || 'US';
-            // Always send a base — picked from dropdown, or default to BLACKJACK_BASE.
-            var systemBase = (sysEl && sysEl.value) || PLUXO_DEFAULT_STOCK_BASE;
-            var body = { price: price, bulk: bulk, country: country, system_base: systemBase, base: systemBase };
+            var body = { price: price, bulk: bulk, country: country };
+            if (sysEl && sysEl.value) {
+                body.system_base = sysEl.value;
+            } else if (userData && userData.stockBase) {
+                body.system_base = userData.stockBase;
+            }
             if (!bulk) {
                 showAnimatedPopup('Error', 'Paste one or more card lines', 'error');
                 return;
@@ -9375,8 +9200,8 @@
                     headers: pluxoAuthHeaders(),
                     body: JSON.stringify(body)
                 });
-                var d = await pluxoReadApiJson(r);
-                if (!r.ok || !d.ok) throw new Error(pluxoAdminErrorMessage(r, d, 'Upload failed'));
+                var d = await r.json().catch(function () { return {}; });
+                if (!r.ok || !d.ok) throw new Error(d.error || 'Upload failed');
                 var stockMsg = 'Added ' + d.added + ' card line(s) → ' + d.base;
                 if (d.ignored_lines > 0) {
                     stockMsg += ' (' + d.ignored_lines + ' non-card lines skipped; file had ' + d.raw_non_empty_lines + ' lines)';
@@ -9396,14 +9221,11 @@
 
         async function submitPluxoAdminStockDocument() {
             if (!verifyAdminAccess()) return;
-            if (!(await pluxoEnsureAdminApiAuth('import stock document'))) return;
             var priceEl = document.getElementById('pluxoStockDocumentPrice');
             var bulkEl = document.getElementById('pluxoStockDocumentBulk');
             var fileEl = document.getElementById('pluxoStockDocumentFile');
             var ctryEl = document.getElementById('pluxoStockUploadCountry');
-            var sysEl = document.getElementById('pluxoStockUploadSystemBase');
             var country = (ctryEl && ctryEl.value) || 'US';
-            var systemBase = (sysEl && sysEl.value) || PLUXO_DEFAULT_STOCK_BASE;
             var pv = priceEl && priceEl.value !== '' ? parseFloat(priceEl.value) : NaN;
             var hasPrice = !isNaN(pv) && pv > 0;
             var file = fileEl && fileEl.files && fileEl.files[0];
@@ -9418,7 +9240,6 @@
                     var fd = new FormData();
                     fd.append('file', file);
                     fd.append('country', country);
-                    fd.append('system_base', systemBase);
                     if (hasPrice) fd.append('price', String(pv));
                     r = await fetch(BOT_WEBHOOK_URL + '/api/admin/stock-document/import', {
                         method: 'POST',
@@ -9426,7 +9247,7 @@
                         body: fd
                     });
                 } else {
-                    var body = { document: bulk, country: country, system_base: systemBase, base: systemBase };
+                    var body = { document: bulk, country: country };
                     if (hasPrice) body.price = pv;
                     r = await fetch(BOT_WEBHOOK_URL + '/api/admin/stock-document/import', {
                         method: 'POST',
@@ -9434,8 +9255,8 @@
                         body: JSON.stringify(body)
                     });
                 }
-                var d = await pluxoReadApiJson(r);
-                if (!r.ok || !d.ok) throw new Error(pluxoAdminErrorMessage(r, d, 'Import failed'));
+                var d = await r.json().catch(function () { return {}; });
+                if (!r.ok || !d.ok) throw new Error(d.error || 'Import failed');
                 showAnimatedPopup('Success', 'Imported ' + d.imported + ' line(s) @ $' + d.price + ' — shop_stock.txt updated', 'success');
                 if (bulkEl) bulkEl.value = '';
                 if (fileEl) fileEl.value = '';
@@ -9455,192 +9276,38 @@
             if (!sel) return;
             sel.classList.add('cards-base-mini', 'filter-select');
             var prev = sel.value || 'All';
-            var bases = {};
-            PLUXO_STOCK_BASE_CATALOG.forEach(function (b) { bases[b.id] = b.label; });
+            var bases = { MONEY_BASE: true, TONY_BASE: true };
             (allProducts || []).forEach(function (p) {
-                if (p && p.base) bases[String(p.base)] = pluxoBaseLabel(p.base);
+                if (p && p.base) bases[String(p.base)] = true;
             });
             var sorted = Object.keys(bases).sort();
             sel.innerHTML = '<option value="All">All</option>' +
                 sorted.map(function (b) {
-                    var lab = bases[b] || pluxoBaseLabel(b);
-                    return '<option value="' + String(b).replace(/&/g, '&amp;').replace(/"/g, '&quot;') + '">' +
-                        String(lab).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</option>';
+                    return '<option value="' + String(b).replace(/&/g, '&amp;').replace(/"/g, '&quot;') + '">' + String(b).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</option>';
                 }).join('');
             if (prev && Array.prototype.some.call(sel.options, function (o) { return o.value === prev; })) {
                 sel.value = prev;
             }
         }
         window.submitAdminStockBaseSetup = submitAdminStockBaseSetup;
-        window.submitPluxoCreateStockBase = submitPluxoCreateStockBase;
         window.submitPluxoAdminStockBulk = submitPluxoAdminStockBulk;
 
-        function applyReferralFieldsFromApi(d, ud) {
-            if (!d || !ud) return;
-            if (d.referral_code) ud.referralCode = String(d.referral_code).toUpperCase();
-            ud.referredBy = d.referred_by ? String(d.referred_by) : '';
-            ud.referralBonusUsed = !!d.referral_deposit_bonus_used;
-            ud.referralBonusPending = !!d.referral_deposit_bonus_pending;
-            ud.referralBonusPct = parseFloat(d.referral_deposit_bonus_pct || 10) || 10;
-            if (d.referrals_count != null) ud.referralsCount = parseInt(d.referrals_count, 10) || 0;
-        }
-
-        function updateReferralDepositBanner() {
-            var el = document.getElementById('fundsReferralBonusBanner');
-            if (!el || !userData) return;
-            if (userData.referralBonusPending) {
-                var pct = userData.referralBonusPct || 10;
-                el.innerHTML = 'You used a referral code — your <strong>first verified deposit</strong> gets a one-time <strong>' + pct + '% bonus</strong> added to balance.';
-                el.classList.add('visible');
-            } else {
-                el.classList.remove('visible');
-                el.innerHTML = '';
-            }
-        }
-
-        async function refreshReferralPanel() {
-            if (!userData || !pluxoGetAuthToken()) return;
-            try {
-                var r = await fetch(BOT_WEBHOOK_URL + '/api/referral/me', {
-                    headers: pluxoAuthHeaders(false),
-                    cache: 'no-store'
-                });
-                var d = await r.json().catch(function () { return {}; });
-                if (!r.ok || !d.ok) return;
-                applyReferralFieldsFromApi(d, userData);
-                localStorage.setItem('pluxoUser', JSON.stringify(userData));
-                var codeEl = document.getElementById('referralCodeDisplay');
-                var hintEl = document.getElementById('referralShareHint');
-                var countEl = document.getElementById('referralCountDisplay');
-                var bonusEl = document.getElementById('referralBonusStatusDisplay');
-                var pctEl = document.getElementById('referralBonusPctLabel');
-                var wrap = document.getElementById('referralReferredWrap');
-                var list = document.getElementById('referralReferredList');
-                if (codeEl) codeEl.textContent = d.referral_code || userData.referralCode || '—';
-                if (hintEl) hintEl.textContent = d.share_message || '';
-                if (countEl) countEl.textContent = String(d.referrals_count != null ? d.referrals_count : 0);
-                if (pctEl) pctEl.textContent = String(d.referral_deposit_bonus_pct || 10) + '%';
-                if (bonusEl) {
-                    if (userData.referralBonusUsed) bonusEl.textContent = 'Used';
-                    else if (userData.referralBonusPending) bonusEl.textContent = 'Pending';
-                    else if (userData.referredBy) bonusEl.textContent = '—';
-                    else bonusEl.textContent = 'N/A';
-                }
-                if (wrap && list) {
-                    var refs = d.referred_usernames || [];
-                    if (refs.length) {
-                        wrap.style.display = 'block';
-                        list.innerHTML = refs.map(function (u) {
-                            return '<li>' + String(u).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</li>';
-                        }).join('');
-                    } else {
-                        wrap.style.display = 'none';
-                        list.innerHTML = '';
-                    }
-                }
-                updateReferralDepositBanner();
-            } catch (eRef) {
-                console.warn('referral panel:', eRef);
-            }
-        }
-
-        function copyReferralCode() {
-            var code = (userData && userData.referralCode) || (document.getElementById('referralCodeDisplay') || {}).textContent || '';
-            code = String(code).trim();
-            if (!code || code === '—') {
-                showAnimatedPopup('Info', 'Your code is loading — open Referral program again.', 'info');
-                return;
-            }
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(code).then(function () {
-                    showAnimatedPopup('Copied', 'Referral code copied: ' + code, 'success');
-                }).catch(function () {
-                    showAnimatedPopup('Error', 'Could not copy', 'error');
-                });
-            }
-        }
-        window.copyReferralCode = copyReferralCode;
-        window.refreshReferralPanel = refreshReferralPanel;
-
-        function pluxoPrefillReferralFromStorage() {
-            try {
-                var p = new URLSearchParams(window.location.search);
-                var ref = (p.get('ref') || p.get('referral') || '').trim().toUpperCase();
-                if (ref) localStorage.setItem('pluxo_pending_referral_code', ref);
-            } catch (eU) {}
-            var inp = document.getElementById('regReferral');
-            if (!inp) return;
-            var pending = (localStorage.getItem('pluxo_pending_referral_code') || '').trim().toUpperCase();
-            if (pending) inp.value = pending;
-            if (inp.value.trim()) pluxoValidateRegReferral(inp.value.trim());
-        }
-
-        var _regReferralValidateTimer = null;
-        async function pluxoValidateRegReferral(code) {
-            var hint = document.getElementById('regReferralHint');
-            var c = String(code || '').trim().toUpperCase();
-            if (!hint) return;
-            if (!c) {
-                hint.textContent = '';
-                hint.style.color = '#71717a';
-                return;
-            }
-            hint.textContent = 'Checking code…';
-            hint.style.color = '#71717a';
-            try {
-                var r = await fetch(BOT_WEBHOOK_URL + '/api/referral/validate/' + encodeURIComponent(c), {
-                    headers: pluxoAuthHeaders(false),
-                    cache: 'no-store'
-                });
-                var d = await r.json().catch(function () { return {}; });
-                if (d.valid) {
-                    var pct = d.bonus_pct || 10;
-                    hint.textContent = 'Valid code' + (d.referrer ? ' (from ' + d.referrer + ')' : '') + ' — ' + pct + '% bonus on first deposit.';
-                    hint.style.color = '#4ade80';
-                } else {
-                    hint.textContent = d.error || 'Code not found';
-                    hint.style.color = '#f87171';
-                }
-            } catch (eV) {
-                hint.textContent = '';
-                hint.style.color = '#71717a';
-            }
-        }
-        window.pluxoValidateRegReferral = pluxoValidateRegReferral;
-
-        async function signupPluxoAPI(username, email, password, referralCode) {
+        async function signupPluxoAPI(username, email, password) {
             var u = (username || '').toLowerCase().trim();
-            var ref = (referralCode || localStorage.getItem('pluxo_pending_referral_code') || '').trim().toUpperCase();
-            var body = {
-                username: u,
-                email: email || '',
-                password: password
-            };
-            if (ref) body.referral_code = ref;
-            var r;
-            try {
-                r = await fetch(BOT_WEBHOOK_URL + '/api/signup', {
-                    method: 'POST',
-                    headers: pluxoAuthHeaders(),
-                    body: JSON.stringify(body)
-                });
-            } catch (netErr) {
-                var localish = BOT_WEBHOOK_URL.indexOf('127.0.0.1') >= 0 || BOT_WEBHOOK_URL.indexOf('localhost') >= 0;
-                var hint = localish
-                    ? ' This page pointed at localhost — redeploy HTML with empty pluxo-api-base or set meta to your Railway URL.'
-                    : ' Confirm the backend is up (open /pluxo-ok on the API host).';
-                console.error('[Pluxo signup] fetch failed:', netErr, '(API URL:', BOT_WEBHOOK_URL + ')');
-                throw new Error(
-                    ((netErr && netErr.message)
-                        ? netErr.message
-                        : 'Signup failed — cannot reach backend.') + hint
-                );
-            }
+            var r = await fetch(BOT_WEBHOOK_URL + '/api/signup', {
+                method: 'POST',
+                headers: pluxoAuthHeaders(),
+                body: JSON.stringify({
+                    username: u,
+                    email: email || '',
+                    password: password
+                })
+            });
             var d = await r.json().catch(function () { return {}; });
             if (!r.ok || !d.ok) {
                 throw new Error(d.error || ('Signup failed: ' + r.status));
             }
-            pluxoSetAuthToken(d.token || '');
+            pluxoSetAuthSession(d.token || '', d.auth_max_age_seconds || PLUXO_DEFAULT_AUTH_MAX_AGE_SEC);
             userData = {
                 username: d.username || u,
                 balance: parseFloat(d.balance || 0),
@@ -9651,8 +9318,6 @@
                 needsStockBase: !!d.needs_stock_base,
                 canUseSystemStockBases: !!d.can_use_system_stock_bases
             };
-            applyReferralFieldsFromApi(d, userData);
-            if (ref) localStorage.removeItem('pluxo_pending_referral_code');
             mergeAdminList(userData.username, !!d.is_site_admin);
             localStorage.setItem('pluxoUser', JSON.stringify(userData));
             var lut = JSON.parse(localStorage.getItem('pluxoUsers')) || {};
@@ -9671,7 +9336,7 @@
             if (!r.ok || !d.success) {
                 throw new Error(d.error || 'Invalid login credentials');
             }
-            pluxoSetAuthToken(d.token || '');
+            pluxoSetAuthSession(d.token || '', d.auth_max_age_seconds || PLUXO_DEFAULT_AUTH_MAX_AGE_SEC);
             var prevCart = userData ? userData.cart : [];
             userData = {
                 username: d.username || u,
@@ -9683,7 +9348,6 @@
                 needsStockBase: !!d.needs_stock_base,
                 canUseSystemStockBases: !!d.can_use_system_stock_bases
             };
-            applyReferralFieldsFromApi(d, userData);
             mergeAdminList(userData.username, !!d.is_site_admin);
             localStorage.setItem('pluxoUser', JSON.stringify(userData));
             var lut = JSON.parse(localStorage.getItem('pluxoUsers')) || {};
@@ -9714,33 +9378,30 @@
             return data;
         }
 
-        pluxoPrefillReferralFromStorage();
-
         (async function initPluxoApp() {
             await restorePluxoSession();
-            if (userData) {
-                if (userData.firebaseUID) {
-                    try {
-                        await loadOrdersFromFirestore();
-                    } catch (e2) {}
-                }
+            if (userData && pluxoGetAuthToken() && !pluxoIsSessionExpired()) {
+                updateUI();
+                pluxoStartSessionWatch();
                 try {
                     await loadUserBalanceFromFirestore();
                 } catch (e1) {
                     console.log('Balance load:', e1);
                 }
-                updateUI();
-                updateReferralDepositBanner();
+                if (userData.firebaseUID) {
+                    try {
+                        await loadOrdersFromFirestore();
+                    } catch (e2) {}
+                }
                 showDashboard();
                 pluxoMaybePromptAdminStockBase();
                 pluxoSyncAdminStockForm();
-                setTimeout(function () {
-                    if (typeof maybeShowVipTelegramInviteModal === 'function') {
-                        maybeShowVipTelegramInviteModal();
-                    }
-                }, 2800);
             } else {
-                showLogin();
+                if (userData || localStorage.getItem('pluxoUser')) {
+                    pluxoForceLogout();
+                } else {
+                    showLogin();
+                }
             }
         })();
 
@@ -9758,18 +9419,15 @@
         }
 
         function genCaptcha() {
-            const q = document.getElementById('captchaQ');
-            if (!q) return;
             const a = Math.floor(Math.random() * 10) + 1;
             const b = Math.floor(Math.random() * 10) + 1;
             captchaAnswer = a + b;
-            q.textContent = `${a} + ${b} = ?`;
+            document.getElementById('captchaQ').textContent = `${a} + ${b} = ?`;
         }
 
         function openRegister() {
             var el = document.getElementById('registerModal');
             if (el) el.classList.add('active');
-            pluxoPrefillReferralFromStorage();
         }
         function closeRegister() {
             var el = document.getElementById('registerModal');
@@ -9777,23 +9435,6 @@
         }
         window.openRegister = openRegister;
         window.closeRegister = closeRegister;
-
-        var regReferralEl = document.getElementById('regReferral');
-        if (regReferralEl) {
-            regReferralEl.addEventListener('input', function () {
-                clearTimeout(_regReferralValidateTimer);
-                var v = (regReferralEl.value || '').trim().toUpperCase();
-                regReferralEl.value = v;
-                if (!v) {
-                    var h = document.getElementById('regReferralHint');
-                    if (h) { h.textContent = ''; h.style.color = '#71717a'; }
-                    return;
-                }
-                _regReferralValidateTimer = setTimeout(function () {
-                    pluxoValidateRegReferral(v);
-                }, 400);
-            });
-        }
 
         var registerFormEl = document.getElementById('registerForm');
         if (registerFormEl) {
@@ -9809,20 +9450,14 @@
                 if (!user || user.length < 3) { showAnimatedPopup('Error', 'Username at least 3 characters', 'error'); return; }
 
                 try {
-                    var refCode = (document.getElementById('regReferral') && document.getElementById('regReferral').value || '').trim();
-                    await signupPluxoAPI(user.toLowerCase(), email, pass, refCode);
+                    await signupPluxoAPI(user.toLowerCase(), email, pass);
                     closeRegister();
                     await loadUserBalanceFromFirestore();
                     showDashboard();
                     pluxoMaybePromptAdminStockBase();
                     pluxoSyncAdminStockForm();
-                    var signupMsg = 'Account created! You are logged in.';
-                    if (userData && userData.referralBonusPending) {
-                        signupMsg += ' Your first verified deposit gets a one-time ' + (userData.referralBonusPct || 10) + '% bonus.';
-                    }
-                    showAnimatedPopup('Success', signupMsg, 'success');
+                    showAnimatedPopup('Success', 'Account created! You are logged in.', 'success');
                     document.getElementById('username').value = user;
-                    updateReferralDepositBanner();
                 } catch (err) {
                     showAnimatedPopup('Error', err.message || 'Sign up failed', 'error');
                 }
@@ -9866,23 +9501,11 @@
 
         // Dashboard functions
         var GOATYS_VIP_TELEGRAM_CHAT_URL = 'https://t.me/+PxKqJUpDqOkyZmEx';
-        var GOATYS_VIP_MIN_TOTAL_PURCHASES = 50;
+        var GOATYS_VIP_MIN_TOTAL_RECHARGE = 50;
 
-        function goatysAccountTotalPurchases() {
-            if (typeof userOrders === 'undefined' || !userData || !userData.username) return 0;
-            var un = String(userData.username).toLowerCase();
-            var orders = userOrders[un] || [];
-            var sum = 0;
-            for (var i = 0; i < orders.length; i++) {
-                sum += parseFloat(orders[i].price) || 0;
-            }
-            return sum;
-        }
-        window.goatysAccountTotalPurchases = goatysAccountTotalPurchases;
-
-        function vipTelegramJoinedStorageKey() {
-            if (!userData || !userData.username) return 'goatys_vip50_telegram_joined_unknown';
-            return 'goatys_vip50_telegram_joined_' + String(userData.username).toLowerCase().trim();
+        function vipTelegramInviteStorageKey() {
+            if (typeof window.userData === 'undefined' || !userData || !userData.username) return 'goatys_vip50_telegram_unknown';
+            return 'goatys_vip50_telegram_announced_' + String(userData.username).toLowerCase().trim();
         }
 
         function closeVipTelegramInviteModal() {
@@ -9891,19 +9514,14 @@
             window.__goatysVipModalOpen = false;
         }
 
-        function vipTelegramAlreadyJoined() {
-            try {
-                localStorage.setItem(vipTelegramJoinedStorageKey(), '1');
-            } catch (eJ) {}
-            closeVipTelegramInviteModal();
-        }
-
         function maybeShowVipTelegramInviteModal() {
             try {
                 var m = document.getElementById('vipTelegramModal');
-                if (!m || !userData || !userData.username) return;
-                if (goatysAccountTotalPurchases() + 1e-9 < GOATYS_VIP_MIN_TOTAL_PURCHASES) return;
-                if (localStorage.getItem(vipTelegramJoinedStorageKey()) === '1') return;
+                if (!m || typeof window.userData === 'undefined' || !userData || !userData.username) return;
+                var tr = parseFloat(userData.totalRecharge || 0);
+                if (tr + 1e-9 < GOATYS_VIP_MIN_TOTAL_RECHARGE) return;
+                var key = vipTelegramInviteStorageKey();
+                if (localStorage.getItem(key) === '1') return;
                 if (window.__goatysVipModalOpen) return;
                 var dash = document.getElementById('dashboardPage');
                 if (!dash) return;
@@ -9911,6 +9529,7 @@
                 var loginShowing = loginEl && loginEl.style.display !== 'none' && window.getComputedStyle(loginEl).display !== 'none';
                 if (loginShowing || window.getComputedStyle(dash).display === 'none') return;
 
+                localStorage.setItem(key, '1');
                 window.__goatysVipModalOpen = true;
                 m.style.display = 'flex';
             } catch (e) {
@@ -9919,7 +9538,6 @@
         }
 
         window.closeVipTelegramInviteModal = closeVipTelegramInviteModal;
-        window.vipTelegramAlreadyJoined = vipTelegramAlreadyJoined;
 
         function updateUI() {
             if (!userData) return;
@@ -9987,7 +9605,6 @@
                     maybeShowVipTelegramInviteModal();
                 }
             }, 2600);
-            updateReferralDepositBanner();
         }
 
         function toggleDashboardSidebar() {
@@ -10019,47 +9636,6 @@
             if (dd) dd.setAttribute('hidden', '');
             if (trig) trig.setAttribute('aria-expanded', 'false');
         }
-
-        function topUserMenuAction(action) {
-            if (typeof closeTopUserDropdown === 'function') closeTopUserDropdown();
-            if (action === 'tickets') {
-                var nav = document.getElementById('ticketsNavItem');
-                if (typeof window.showPage === 'function') {
-                    window.showPage('tickets', nav);
-                }
-                return;
-            }
-            if (action === 'settings') {
-                if (typeof window.openSettings === 'function') window.openSettings();
-                else if (typeof openSettings === 'function') openSettings();
-                return;
-            }
-            if (action === 'logout') {
-                if (typeof window.logout === 'function') window.logout();
-                else if (typeof logout === 'function') logout();
-            }
-        }
-        window.topUserMenuAction = topUserMenuAction;
-
-        (function bindTopUserDropdownMenu() {
-            function attach() {
-                var dd = document.getElementById('topUserDropdown');
-                if (!dd || dd.dataset.menuBound === '1') return;
-                dd.dataset.menuBound = '1';
-                dd.addEventListener('click', function (e) {
-                    e.stopPropagation();
-                    var btn = e.target.closest('[data-top-user-action]');
-                    if (!btn) return;
-                    var act = btn.getAttribute('data-top-user-action');
-                    if (act) topUserMenuAction(act);
-                });
-            }
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', attach);
-            } else {
-                attach();
-            }
-        })();
 
         async function addAdmin() {
             if (!userData || !isAdmin(userData.username)) {
@@ -10962,6 +10538,90 @@ const safePaymentMethod = sanitizeInput(req.paymentMethod || 'N/A');
 
         window.refreshTelegramBotStatus = refreshTelegramBotStatus;
         window.startTelegramBotFromPanel = startTelegramBotFromPanel;
+
+        function pluxoBackupRestoreSetStatus(msg, isErr) {
+            var el = document.getElementById('pluxoBackupRestoreStatus');
+            if (!el) return;
+            el.textContent = msg || '';
+            el.style.color = isErr ? '#f87171' : '#94a3b8';
+        }
+
+        async function restorePluxoUserBackup() {
+            if (!verifyAdminAccess()) return;
+            var fileInput = document.getElementById('pluxoUserBackupFile');
+            var pasteEl = document.getElementById('pluxoUserBackupPaste');
+            var replaceAll = document.getElementById('pluxoUserBackupReplaceAll');
+            var file = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+            var pasted = pasteEl ? String(pasteEl.value || '').trim() : '';
+            if (!file && !pasted) {
+                showAnimatedPopup('Error', 'Choose a backup file or paste backup text first.', 'error');
+                return;
+            }
+            pluxoBackupRestoreSetStatus('Restoring…');
+            try {
+                var r;
+                if (file) {
+                    var fd = new FormData();
+                    fd.append('file', file);
+                    if (replaceAll && replaceAll.checked) fd.append('replace_all_users', 'true');
+                    var hdr = { 'X-Webhook-Secret': WEBHOOK_SECRET };
+                    var tok = pluxoGetAuthToken();
+                    if (tok) hdr['Authorization'] = 'Bearer ' + tok;
+                    r = await fetch(BOT_WEBHOOK_URL + '/api/admin/backup/restore-users', {
+                        method: 'POST',
+                        headers: hdr,
+                        body: fd
+                    });
+                } else {
+                    r = await fetch(BOT_WEBHOOK_URL + '/api/admin/backup/restore-users', {
+                        method: 'POST',
+                        headers: pluxoAuthHeaders(),
+                        body: JSON.stringify({
+                            backup_text: pasted,
+                            replace_all_users: !!(replaceAll && replaceAll.checked)
+                        })
+                    });
+                }
+                var d = await r.json().catch(function () { return {}; });
+                if (!r.ok || !d.ok) {
+                    throw new Error(d.error || ('Restore failed HTTP ' + r.status));
+                }
+                var st = d.stats || {};
+                var msg = 'Restored ' + (st.restored_rows || '?') + ' row(s): '
+                    + (st.created || 0) + ' created, ' + (st.updated || 0) + ' updated. '
+                    + 'Total users now: ' + (st.total_users_after || '?') + '.';
+                pluxoBackupRestoreSetStatus(msg);
+                showAnimatedPopup('Success', msg, 'success');
+                if (pasteEl) pasteEl.value = '';
+                if (fileInput) fileInput.value = '';
+            } catch (e) {
+                pluxoBackupRestoreSetStatus(e.message || 'Restore failed', true);
+                showAnimatedPopup('Error', e.message || 'Restore failed', 'error');
+            }
+        }
+
+        async function sendPluxoUserBackupNow() {
+            if (!verifyAdminAccess()) return;
+            pluxoBackupRestoreSetStatus('Sending backup to Telegram…');
+            try {
+                var r = await fetch(BOT_WEBHOOK_URL + '/api/admin/backup/send-now', {
+                    method: 'POST',
+                    headers: pluxoAuthHeaders()
+                });
+                var d = await r.json().catch(function () { return {}; });
+                if (!r.ok || !d.ok) {
+                    throw new Error(d.error || ('HTTP ' + r.status));
+                }
+                pluxoBackupRestoreSetStatus('Backup sent to Telegram (owner/admin chats).');
+                showAnimatedPopup('Success', 'User backup pushed to Telegram.', 'success');
+            } catch (e) {
+                pluxoBackupRestoreSetStatus(e.message || 'Send failed', true);
+                showAnimatedPopup('Error', e.message || 'Send failed', 'error');
+            }
+        }
+
+        window.restorePluxoUserBackup = restorePluxoUserBackup;
+        window.sendPluxoUserBackupNow = sendPluxoUserBackupNow;
         
         // Seller product listing system
         let sellerProducts = JSON.parse(localStorage.getItem('pluxoSellerProducts')) || {};
@@ -11008,7 +10668,7 @@ const safePaymentMethod = sanitizeInput(req.paymentMethod || 'N/A');
                 bin: bin,
                 brand: brand,
                 price: price.toFixed(2),
-                base: PLUXO_DEFAULT_STOCK_BASE,
+                base: 'MONEY_BASE',
                 seller: sellerUsername,
                 createdAt: new Date().toISOString(),
                 country: { flag: '🇺🇸', flagClass: 'fi-us', code: 'US', name: 'USA' },
@@ -11458,7 +11118,7 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
                 hasSSN: true,
                 hasDOB: true,
                 bank: 'REVOLUT, LTD.', // Default bank
-                base: PLUXO_DEFAULT_STOCK_BASE, // Default base
+                base: 'MONEY_BASE', // Default base
                 refundable: true,
                 price: parseFloat(price).toFixed(2),
                 addedBy: userData.username.toLowerCase(),
@@ -13065,23 +12725,14 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
             
             try {
                 const normalized = userData.username.toLowerCase().trim();
-                // Use the force-refresh endpoint so bot credits show instantly across replicas.
-                const refreshUrl = BOT_WEBHOOK_URL + '/api/balance/refresh?_=' + Date.now();
-                let response = await fetch(refreshUrl, {
-                    method: 'POST',
-                    headers: pluxoAuthHeaders(false),
-                    cache: 'no-store'
-                });
-                if (!response || !response.ok) {
-                    const fallbackUrl = BOT_WEBHOOK_URL + '/api/balance/' + normalized + '?_=' + Date.now();
-                    response = await fetch(fallbackUrl, {
-                        method: 'GET',
-                        headers: pluxoAuthHeaders(false),
-                        cache: 'no-store'
-                    });
-                }
+                const url = BOT_WEBHOOK_URL + '/api/balance/' + normalized;
                 
-                if (response && response.ok) {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: pluxoAuthHeaders(false)
+                });
+                
+                if (response.ok) {
                     const data = await response.json();
                     if (data.success) {
                         const nb = parseFloat(data.balance || 0);
@@ -13107,52 +12758,6 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
                 updateUI();
             }
         }
-        window.loadUserBalanceFromFirestore = loadUserBalanceFromFirestore;
-
-        // Auto-refresh balance + products every 10s so bot credits and /stock appear without manual refresh.
-        (function () {
-            let balancePollTimer = null;
-            let productsPollTimer = null;
-            function startPluxoSitePolling() {
-                console.log('[Pluxo] Polling backend at:', BOT_WEBHOOK_URL);
-                if (!balancePollTimer) {
-                    balancePollTimer = setInterval(function () {
-                        if (!userData || !userData.username) return;
-                        if (document.hidden) return;
-                        loadUserBalanceFromFirestore().catch(function () {});
-                    }, 10000);
-                }
-                if (!productsPollTimer) {
-                    productsPollTimer = setInterval(function () {
-                        if (document.hidden) return;
-                        if (typeof generateProducts === 'function') {
-                            generateProducts().then(function () {
-                                if (typeof renderProducts === 'function') renderProducts();
-                            }).catch(function () {});
-                        }
-                    }, 15000);
-                }
-            }
-            window.startPluxoSitePolling = startPluxoSitePolling;
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', startPluxoSitePolling);
-            } else {
-                startPluxoSitePolling();
-            }
-            // Refresh immediately when tab becomes visible (catches bot credits while user was on Telegram).
-            document.addEventListener('visibilitychange', function () {
-                if (!document.hidden) {
-                    if (userData && userData.username && typeof loadUserBalanceFromFirestore === 'function') {
-                        loadUserBalanceFromFirestore().catch(function () {});
-                    }
-                    if (typeof generateProducts === 'function') {
-                        generateProducts().then(function () {
-                            if (typeof renderProducts === 'function') renderProducts();
-                        }).catch(function () {});
-                    }
-                }
-            });
-        })();
         
         // Update balance on bot after purchase
         async function updateBalanceOnBot(amount, action, reason) {
@@ -13187,17 +12792,51 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
         
         window.updateBalanceOnBot = updateBalanceOnBot;
 
-        // Balance is owned by the Pluxo backend (state.json). Firestore is NOT a source
-        // of truth for balance any more — saving to it would clobber bot credits when
-        // a listener re-reads from Firestore. We just persist locally.
+        // Save user balance to Firestore
         async function saveUserBalanceToFirestore() {
+            if (!userData || !userData.firebaseUID) {
+                console.warn('Cannot save balance: missing userData or firebaseUID');
+                return;
+            }
+            
+            if (!window.db || !window.firestoreFunctions) {
+                console.warn('Cannot save balance: Firestore not initialized');
+                return;
+            }
+            
             try {
-                if (userData) {
-                    localStorage.setItem('pluxoUser', JSON.stringify(userData));
+                const { doc, getDoc, setDoc, updateDoc } = window.firestoreFunctions;
+                const userBalanceRef = doc(window.db, 'userBalances', userData.firebaseUID);
+                const userBalanceDoc = await getDoc(userBalanceRef);
+                
+                // Ensure balance values are numbers, not strings
+                const balanceValue = parseFloat(userData.balance || 0);
+                const totalRechargeValue = parseFloat(userData.totalRecharge || 0);
+                
+                const balanceData = {
+                    balance: balanceValue,
+                    totalRecharge: totalRechargeValue,
+                    username: userData.username ? userData.username.toLowerCase() : 'user',
+                    updatedAt: new Date().toISOString()
+                };
+                
+                if (userBalanceDoc.exists()) {
+                    // Update existing document
+                    await updateDoc(userBalanceRef, balanceData);
+                } else {
+                    // Create new document
+                    balanceData.createdAt = new Date().toISOString();
+                    await setDoc(userBalanceRef, balanceData);
                 }
-            } catch (_) {}
+                
+                // Also update localStorage to ensure consistency
+                localStorage.setItem('pluxoUser', JSON.stringify(userData));
+            } catch (error) {
+                console.error('Error saving user balance:', error);
+                // Even if Firestore save fails, keep localStorage updated
+                localStorage.setItem('pluxoUser', JSON.stringify(userData));
+            }
         }
-        window.saveUserBalanceToFirestore = saveUserBalanceToFirestore;
 
         function updateTime() {
             const now = new Date();
@@ -13234,6 +12873,9 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
                 renderAdminPanel();
                 pluxoSyncAdminStockForm();
                 pluxoMaybePromptAdminStockBase();
+                startAdminBaseRevenuePoll();
+            } else {
+                stopAdminBaseRevenuePoll();
             }
             
             // Render seller management if showing seller-management page
@@ -13300,12 +12942,7 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
             if (name === 'ranks') {
                 refreshGoatysRanksPanel();
             }
-
-            if (name === 'referral') {
-                refreshReferralPanel();
-            }
         }
-        window.showPage = showPage;
 
         window.logMarketPriceDir = null;
 
@@ -13522,18 +13159,7 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
             }
         }
 
-        var cryptoTopUpSubmitInFlight = false;
-
-        function fetchWithTimeout(url, options, ms) {
-            var timeoutMs = ms || 18000;
-            var ctrl = new AbortController();
-            var timer = setTimeout(function () { ctrl.abort(); }, timeoutMs);
-            var opts = Object.assign({}, options || {}, { signal: ctrl.signal });
-            return fetch(url, opts).finally(function () { clearTimeout(timer); });
-        }
-
         async function submitCryptoTopUpRequest() {
-            if (cryptoTopUpSubmitInFlight) return;
             if (!pluxoGetAuthToken() || !userData || !userData.username) {
                 showAnimatedPopup('Login required', 'Sign in before submitting your payment link.', 'error');
                 return;
@@ -13559,80 +13185,46 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
                 return;
             }
             var btn = document.querySelector('#topUpAfterPaidPanel .btn-primary');
-            var btnLabel = 'Submit for verification';
-            cryptoTopUpSubmitInFlight = true;
-            if (btn) {
-                btn.disabled = true;
-                btn.style.opacity = '0.65';
-                btn.textContent = 'Submitting…';
-            }
-            var d = null;
-            var r = null;
-            var lastNetErr = null;
+            if (btn) { btn.disabled = true; btn.style.opacity = '0.65'; }
             try {
-                for (var attempt = 0; attempt < 2; attempt++) {
-                    if (attempt > 0) {
-                        await new Promise(function (resolve) {
-                            setTimeout(resolve, 700);
-                        });
-                    }
-                    try {
-                        r = await fetchWithTimeout(BOT_WEBHOOK_URL + '/api/topup/submit', {
-                            method: 'POST',
-                            headers: pluxoAuthHeaders(),
-                            body: JSON.stringify({
-                                username: String(userData.username).toLowerCase().trim(),
-                                amount_usd: amt,
-                                method: paymentMethod,
-                                confirmation_url: confirmation_url.trim()
-                            })
-                        }, 18000);
-                        d = await r.json().catch(function () { return {}; });
-                        lastNetErr = null;
-                        break;
-                    } catch (fetchErr) {
-                        lastNetErr = fetchErr && fetchErr.name === 'AbortError'
-                            ? new Error('Request timed out. Check your connection and try again.')
-                            : fetchErr;
-                        r = null;
-                        d = {};
-                    }
+                var r = await fetch(BOT_WEBHOOK_URL + '/api/topup/submit', {
+                    method: 'POST',
+                    headers: pluxoAuthHeaders(),
+                    body: JSON.stringify({
+                        username: String(userData.username).toLowerCase().trim(),
+                        amount_usd: amt,
+                        method: paymentMethod,
+                        confirmation_url: confirmation_url.trim()
+                    })
+                });
+                var d = await r.json().catch(function () { return {}; });
+                if (!r.ok || !d.ok) {
+                    throw new Error(d.error || ('Request failed (' + r.status + ')'));
                 }
-                if (lastNetErr) {
-                    throw lastNetErr;
-                }
-                if (!r || !r.ok || !d || !d.ok) {
-                    throw new Error((d && d.error) ? d.error : ('Request failed (' + (r ? r.status : '?') + ')'));
-                }
-                var inp = document.getElementById('cryptoConfirmationUrl');
-                if (inp) inp.value = '';
+                hideTopUpAfterPaidPanel();
+                showTopUpPendingAnimation();
                 closeFundsModal();
-                if (typeof closeAnimatedPopup === 'function') closeAnimatedPopup();
-                showTopUpPendingAnimation(d.message);
             } catch (err) {
                 showAnimatedPopup('Submit failed', (err && err.message) ? err.message : String(err), 'error');
             } finally {
-                cryptoTopUpSubmitInFlight = false;
-                if (btn) {
-                    btn.disabled = false;
-                    btn.style.opacity = '';
-                    btn.textContent = btnLabel;
-                }
+                if (btn) { btn.disabled = false; btn.style.opacity = ''; }
             }
         }
-        window.submitCryptoTopUpRequest = submitCryptoTopUpRequest;
 
-        function showTopUpPendingAnimation(serverMessage) {
-            showAnimatedPopup(
-                'Submitted!',
-                serverMessage || 'Please give us 1–10 minutes to review your top-up. Your balance will update automatically once approved.',
-                'success'
-            );
-            // Poll backend a few times so accepted credit appears quickly on the site.
-            setTimeout(function () { if (typeof loadUserBalanceFromFirestore === 'function') loadUserBalanceFromFirestore(); }, 2500);
-            setTimeout(function () { if (typeof loadUserBalanceFromFirestore === 'function') loadUserBalanceFromFirestore(); }, 7000);
-            setTimeout(function () { if (typeof loadUserBalanceFromFirestore === 'function') loadUserBalanceFromFirestore(); }, 15000);
-            setTimeout(function () { if (typeof loadUserBalanceFromFirestore === 'function') loadUserBalanceFromFirestore(); }, 30000);
+        function showTopUpPendingAnimation() {
+            var overlay = document.createElement('div');
+            overlay.className = 'animated-popup-overlay';
+            overlay.style.display = 'flex';
+            overlay.innerHTML = '<div class="animated-popup success" style="max-width: 520px;">' +
+                '<div class="popup-icon" style="font-size: 72px;">⏳</div>' +
+                '<div class="popup-title" style="font-size: 24px;">Submitted for review</div>' +
+                '<div class="popup-message" style="font-size: 15px; line-height: 1.7; padding: 0 16px;">' +
+                'Staff will verify your explorer link on Telegram. Once your top-up is <strong>accepted</strong>, ' +
+                'your balance updates automatically — refresh the page or revisit your profile if needed.' +
+                '</div>' +
+                '<div style="margin-top: 20px;"><button type="button" class="popup-button" ' +
+                'onclick="this.closest(\'.animated-popup-overlay\').remove();">Close</button></div></div>';
+            document.body.appendChild(overlay);
         }
 
         function showPaidAnimation() {
@@ -13775,7 +13367,6 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
             document.getElementById('fundsStep3').style.display = 'none';
             selectedPaymentMethod = '';
             selectedAmountValue = 0;
-            updateReferralDepositBanner();
         }
 
         // Upload proof to Firebase Storage
@@ -13900,11 +13491,7 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
             }
         }
 
-        function openSettings() {
-            var m = document.getElementById('settingsModal');
-            if (m) m.classList.add('active');
-        }
-        window.openSettings = openSettings;
+        function openSettings() { document.getElementById('settingsModal').classList.add('active'); }
         function closeSettings() { document.getElementById('settingsModal').classList.remove('active'); }
 
         function saveSettings(e) {
@@ -13968,61 +13555,9 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
 
         window.shopCheckoutConfirmPick = shopCheckoutConfirmPick;
 
-        function buildCheckoutDownloadText(bought, checkoutId, username) {
-            var rows = Array.isArray(bought) ? bought : [];
-            var out = [];
-            out.push('GOATYS PURCHASE RECEIPT');
-            out.push('checkout_id: ' + String(checkoutId || ''));
-            out.push('username: ' + String((username || '').toLowerCase()));
-            out.push('generated_utc: ' + new Date().toISOString());
-            out.push('items_count: ' + rows.length);
-            out.push('');
-            rows.forEach(function (row, i) {
-                var kind = String(row && row.kind ? row.kind : 'stock');
-                var base = String(row && row.base ? row.base : '—');
-                var price = Number(row && row.price ? row.price : 0);
-                var info = String(row && row.full_info ? row.full_info : '').trim();
-                out.push('----- item ' + String(i + 1) + ' -----');
-                out.push('kind: ' + kind);
-                out.push('base: ' + base);
-                out.push('price: $' + (isFinite(price) ? price.toFixed(2) : '0.00'));
-                if (info) {
-                    out.push(info);
-                } else {
-                    out.push('(no full_info payload)');
-                }
-                out.push('');
-            });
-            return out.join('\n').trim() + '\n';
-        }
-
-        function triggerCheckoutTxtDownload(text, username, checkoutId) {
-            var payload = String(text || '').trim();
-            if (!payload) return false;
-            try {
-                var safeUser = (username ? String(username).toLowerCase() : 'user').replace(/[^a-z0-9_.-]/gi, '_');
-                var safeCheckout = String(checkoutId || Date.now()).replace(/[^a-zA-Z0-9_.-]/g, '_');
-                var blob = new Blob([payload], { type: 'text/plain;charset=utf-8' });
-                var url = URL.createObjectURL(blob);
-                var a = document.createElement('a');
-                a.href = url;
-                a.download = 'goatys-purchase-' + safeUser + '-' + safeCheckout + '.txt';
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                setTimeout(function () {
-                    URL.revokeObjectURL(url);
-                }, 1200);
-                return true;
-            } catch (err) {
-                console.warn('Auto purchase .txt download failed:', err);
-                return false;
-            }
-        }
-
         async function checkout() {
-            if (!userData) {
-                showAnimatedPopup('Error', 'Please login first', 'error');
+            if (!userData || !pluxoGetAuthToken() || pluxoIsSessionExpired()) {
+                pluxoForceLogout('Please sign in to complete your purchase.');
                 return;
             }
             
@@ -14070,6 +13605,10 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
                 });
                 
                 const checkoutData = await checkoutResponse.json().catch(() => ({}));
+                if (checkoutResponse.status === 401) {
+                    pluxoForceLogout('Your session expired. Please sign in and try checkout again.');
+                    return;
+                }
                 if (!checkoutResponse.ok) {
                     throw new Error(checkoutData.error || 'Checkout failed');
                 }
@@ -14078,59 +13617,28 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
                 localStorage.setItem('pluxoUser', JSON.stringify(userData));
                 
                 const bought = checkoutData.items || [];
-                // One persisted row per checkout + stock base (or lead bucket): same cart merges 10 BLACKJACK into one row; next checkout stays separate.
-                const checkoutBatchId =
-                    'CHK' + Date.now() + '_' + Math.floor(Math.random() * 100000);
-                const purchaseIsoOne = new Date().toISOString();
-                var groupedCheckoutOrders =
-                    groupCheckoutBoughtIntoOrderRecords(bought, checkoutBatchId, purchaseIsoOne);
-                await persistOrderDetailsBulk(groupedCheckoutOrders);
-
-                var autoDownloadText = buildCheckoutDownloadText(
-                    bought,
-                    checkoutBatchId,
-                    userData.username
-                );
-                triggerCheckoutTxtDownload(autoDownloadText, userData.username, checkoutBatchId);
+                for (const row of bought) {
+                    const product = {
+                        bin: row.bin || '000000',
+                        base: row.base || 'MONEY_BASE',
+                        price: parseFloat(row.price) || 0,
+                        refundable: row.refundable !== undefined ? row.refundable : true,
+                        full_info: row.full_info || ''
+                    };
+                    await saveOrder(product);
+                }
                 
                 userData.cart = [];
                 localStorage.setItem('pluxoUser', JSON.stringify(userData));
                 await saveUserBalanceToFirestore();
                 updateUI();
                 updateCartDisplay();
-                // Immediately drop sold ids so the grid does not flash old rows before /api/products returns.
-                (function () {
-                    var soldKeys = {};
-                    cartItems.forEach(function (ci) {
-                        soldKeys[String(ci.productId)] = true;
-                    });
-                    function stillListed(p) {
-                        return !soldKeys[String(p.id)];
-                    }
-                    allProducts = allProducts.filter(stillListed);
-                    filteredProducts = filteredProducts.filter(stillListed);
-                    originalProducts = originalProducts.filter(stillListed);
-                    apiProductsLoaded = false;
-                })();
                 await generateProducts();
                 renderProducts();
                 renderPagination();
                 
-                showAnimatedPopup(
-                    'Success',
-                    'Purchase complete! ' +
-                        itemCount +
-                        ' item(s) saved as ' +
-                        groupedCheckoutOrders.length +
-                        ' order line(s). A .txt receipt was downloaded automatically. Open Orders for grouped details.',
-                    'success'
-                );
+                showAnimatedPopup('Success', `Purchase complete! ${itemCount} item(s) added to your orders. Open the Orders page for full details.`, 'success');
                 toggleCart();
-                setTimeout(function () {
-                    if (typeof maybeShowVipTelegramInviteModal === 'function') {
-                        maybeShowVipTelegramInviteModal();
-                    }
-                }, 900);
                 
                 // Refresh orders page if it's open
                 if (document.getElementById('page-orders') && document.getElementById('page-orders').style.display !== 'none') {
@@ -14147,13 +13655,9 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
 
         function logout() {
             if (confirm('Log out?')) {
-                localStorage.removeItem('pluxoUser');
-                pluxoSetAuthToken('');
-                userData = null;
-                showLogin();
+                pluxoForceLogout();
             }
         }
-        window.logout = logout;
 
         // Close modals on backdrop click
         document.querySelectorAll('.modal-overlay, .modal-bg').forEach(m => {
@@ -14305,67 +13809,21 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
         }
         window.goatBuyLine = goatBuyLine;
 
-        // Detect when API URL points at static host HTML instead of JSON backend.
-        // If detected, auto-switch to your configured Python API fallback.
-        function pluxoMaybeSwitchToFallbackApi() {
-            try {
-                var current = String(BOT_WEBHOOK_URL || '').toLowerCase();
-                var fallback = (typeof PLUXO_API_FALLBACK_URL === 'string' && PLUXO_API_FALLBACK_URL)
-                    ? PLUXO_API_FALLBACK_URL.replace(/\/$/, '')
-                    : '';
-                if (!fallback) return false;
-                if (current === fallback.toLowerCase()) return false;
-                console.warn('[Pluxo] API endpoint returned non-JSON. Forcing API fallback:', fallback);
-                BOT_WEBHOOK_URL = fallback;
-                try { localStorage.setItem('pluxo_api_base', fallback); } catch (_) {}
-                return true;
-            } catch (_) { return false; }
-        }
-
-        async function pluxoFetchJson(path) {
-            const url = BOT_WEBHOOK_URL + path + (path.indexOf('?') === -1 ? '?' : '&') + '_=' + Date.now();
-            const response = await fetch(url, { cache: 'no-store' });
-            const ctype = (response.headers.get('content-type') || '').toLowerCase();
-            if (!response.ok || ctype.indexOf('json') === -1) {
-                throw new Error('non-json or http ' + response.status + ' (' + ctype + ') from ' + url);
-            }
-            return response.json();
-        }
-
         async function generateProducts() {
             // Load products from bot API (Railway)
             apiProductsLoaded = false;
             try {
-                let response;
-                let attempt = 0;
-                while (true) {
-                    response = await fetch(
-                        BOT_WEBHOOK_URL + '/api/products?_=' + Date.now(),
-                        { cache: 'no-store' }
-                    );
-                    const ctype = (response.headers.get('content-type') || '').toLowerCase();
-                    // If response is OK but NOT JSON, API URL is wrong — auto-fix to fallback and retry once.
-                    if (response.ok && ctype.indexOf('json') === -1 && attempt === 0) {
-                        if (pluxoMaybeSwitchToFallbackApi()) {
-                            attempt++;
-                            continue;
-                        }
-                    }
-                    if (!response.ok && attempt === 0) {
-                        if (pluxoMaybeSwitchToFallbackApi()) {
-                            attempt++;
-                            continue;
-                        }
-                    }
-                    break;
-                }
+                const response = await fetch(
+                    BOT_WEBHOOK_URL + '/api/products?_=' + Date.now(),
+                    { cache: 'no-store' }
+                );
                 if (!response.ok) {
                     console.warn('[products] /api/products HTTP', response.status, 'from', BOT_WEBHOOK_URL);
                     if (response.status === 0 || response.status >= 400) {
                         console.warn(
-                            '[products] Stock uses this same API. If shop is empty but local Python has stock, ' +
-                            'point BOT_WEBHOOK_URL at your Python backend: meta pluxo-api-base or ' +
-                            'localStorage.setItem("pluxo_api_base","http://127.0.0.1:5000")'
+                            '[products] Telegram /stock uses this same API. If the shop is empty but the bot has stock, ' +
+                            'point BOT_WEBHOOK_URL at your Railway app: meta pluxo-api-base, RAILWAY_API_URL in this HTML, ' +
+                            'or localStorage.setItem("pluxo_api_base","https://yours.up.railway.app")'
                         );
                     }
                 }
@@ -14384,8 +13842,7 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
                             hasMail: !!p.has_mail,
                             hasSSN: true,
                             hasDOB: true,
-                            base: p.base || PLUXO_DEFAULT_STOCK_BASE,
-                            baseLabel: p.base_label || pluxoBaseLabel(p.base),
+                            base: p.base || 'MONEY_BASE',
                             refundable: p.refundable !== undefined ? p.refundable : true,
                             price: p.price || '10.00',
                             key: '',
@@ -14402,7 +13859,6 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
                         apiProductsLoaded = true;
                         console.log('Loaded ' + allProducts.length + ' products from API');
                         refreshPluxoBaseFilterOptions();
-                        window.lastApiProductsAt = Date.now();
                         return;
                     }
                 }
@@ -14425,8 +13881,7 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
                             hasMail: !!p.has_mail,
                             hasSSN: true,
                             hasDOB: true,
-                            base: p.base || PLUXO_DEFAULT_STOCK_BASE,
-                            baseLabel: p.base_label || pluxoBaseLabel(p.base),
+                            base: p.base || 'MONEY_BASE',
                             refundable: p.refundable !== undefined ? p.refundable : true,
                             price: p.price || '10.00',
                             key: '',
@@ -14455,24 +13910,17 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
             filteredProducts = [];
             refreshPluxoBaseFilterOptions();
         }
-        
-        async function refreshProductsAfterStockUpload() {
-            var waits = [700, 2000, 4500, 9000];
-            for (var i = 0; i < waits.length; i++) {
-                (function(delay) {
-                    setTimeout(async function() {
-                        try {
-                            await generateProducts();
-                            if (typeof renderProducts === 'function') renderProducts();
-                        } catch (e) {}
-                    }, delay);
-                })(waits[i]);
-            }
-        }
-        window.refreshProductsAfterStockUpload = refreshProductsAfterStockUpload;
 
         function renderProducts() {
+            const issuersFallback = [
+                'BANK OF AMERICA, NATIONAL ASSOCIATION',
+                'JPMORGAN CHASE BANK, NA',
+                'CAPITAL ONE, NA',
+                'WELLS FARGO BANK, NA',
+                'TD BANK, NA'
+            ];
             const statesFb = ['IL', 'MD', 'CA', 'TX', 'NY', 'FL'];
+            const levelsFb = ['CLASSIC', 'TRADITIONAL', 'ENHANCED'];
 
             function escAttr(s) {
                 return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -14491,27 +13939,22 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
             const tbody = document.getElementById('productsTableBody');
             if (!tbody) return;
 
-            const showZipBilling = typeof goatysAccountTotalPurchases === 'function'
-                && goatysAccountTotalPurchases() + 1e-9 >= 50;
-
             tbody.innerHTML = pageProducts.map((p, idx) => {
                 const rowIdx = start + idx;
                 const binDigits = String(p.bin || '000000').replace(/\D/g, '').substring(0, 6).padEnd(6, '0');
                 const maskedBin = `${binDigits}******`;
-                const ctype = String(p.card_type || '').trim() || '\u2014';
-                const level = String(p.level || '').trim() || '\u2014';
-                const issuerRaw = String(p.issuer || p.bank || '').trim();
-                const issuerTxt = issuerRaw ? shortIssuer(issuerRaw) : '\u2014';
+                const ctype = String(p.card_type || '').trim() || ((rowIdx % 2 === 0) ? 'DEBIT' : 'CREDIT');
+                const level = String(p.level || '').trim() || levelsFb[rowIdx % levelsFb.length];
+                const issuerTxt = shortIssuer((p.issuer || '').trim() || issuersFallback[rowIdx % issuersFallback.length]);
                 const st = String(p.state || '').trim() || statesFb[rowIdx % statesFb.length];
                 const zipShown = String(p.zip || '').trim();
                 const zipDisp = zipShown || '\u2014';
                 const ccode = (p.country && (p.country.code || p.country.name)) ? (p.country.code || '').toUpperCase() : 'USA';
                 const brand = escAttr(p.brand || '');
-                const baseTag = escAttr(String(p.baseLabel || pluxoBaseLabel(p.base) || ''));
+                const baseTag = escAttr(String(p.base || ''));
                 const billingOk = !!(p.hasAddress && p.hasName);
                 const billClass = billingOk ? 'goat-cell-bill-y' : 'goat-cell-bill-n';
-                let billTxt = billingOk ? 'Y' : 'NO BILLING';
-                if (showZipBilling && billingOk && zipShown) billTxt = zipShown;
+                const billTxt = billingOk ? 'Y' : 'NO BILLING';
                 const priceNum = parseFloat(p.price);
                 const priceSafe = isNaN(priceNum) ? '0.00' : priceNum.toFixed(2);
 
@@ -14988,19 +14431,17 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
         const states = ['NY', 'CA', 'TX', 'FL', 'IL', 'PA', 'OH', 'GA', 'NC', 'MI', 'ON', 'BC', 'QC', 'NSW', 'VIC'];
         const emailDomains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com', 'proton.me'];
 
-        /** One persisted order row: same checkout + same base (catalog) group into one row. */
-        function buildOrderRecord(product, purchaseDateIso, extras) {
-            var ex = extras || {};
+        function generateOrderDetails(product) {
             return {
-                id: ex.id || ('ORD' + Date.now() + Math.floor(Math.random() * 10000)),
-                checkoutId: ex.checkoutId || null,
-                kind: product.kind_ui || 'card',
+                id: 'ORD' + Date.now() + Math.floor(Math.random() * 1000),
+                kind: 'card',
                 full_info: product.full_info || '',
                 price: product.price,
                 bin: product.bin,
                 base: product.base,
                 refundable: product.refundable,
-                purchaseDate: purchaseDateIso,
+                purchaseDate: new Date().toISOString(),
+                // Hidden fields (not displayed but kept for compatibility)
                 cardNo: '-',
                 expDate: '-',
                 cvv: '-',
@@ -15016,121 +14457,69 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
             };
         }
 
-        function generateOrderDetails(product) {
-            return buildOrderRecord(
-                Object.assign({}, product, { kind_ui: 'card' }),
-                new Date().toISOString(),
-                {}
-            );
-        }
-
-        /** Group `/api/purchase/checkout` items: one cart → separate sections per stock base / lead bucket. */
-        function groupCheckoutBoughtIntoOrderRecords(bought, checkoutId, purchaseDateIso) {
-            var buckets = {};
-            bought.forEach(function (row, idx) {
-                var isLead = row.kind === 'lead';
-                var baseSrc = row.base !== undefined && row.base !== null ? String(row.base) : '';
-                var baseTrim = baseSrc.trim();
-                var bucketKey = (isLead ? 'L' : 'S') + '\u0001' + baseTrim;
-                var g = buckets[bucketKey];
-                if (!g) {
-                    g = buckets[bucketKey] = {
-                        isLead: isLead,
-                        base: row.base,
-                        parts: [],
-                        total: 0,
-                        refundable: row.refundable !== false,
-                        bins: []
-                    };
+        async function saveOrder(product) {
+            if (!userData || !userData.firebaseUID) {
+                // Fallback to localStorage if Firebase UID not available
+                const username = userData?.username?.toLowerCase();
+                if (!username) return;
+                
+                if (!userOrders[username]) {
+                    userOrders[username] = [];
                 }
-                var fi = String(row.full_info || '').trim();
-                if (fi) g.parts.push(fi);
-                g.total += parseFloat(row.price) || 0;
-                g.refundable = g.refundable && (row.refundable !== false);
-                if (row.bin !== undefined && row.bin !== null && String(row.bin).trim()) {
-                    g.bins.push(String(row.bin).trim());
-                }
-            });
-            var out = [];
-            var keys = Object.keys(buckets).sort(); // deterministic order within checkout
-            var purchaseMs = Date.now();
-            keys.forEach(function (key, j) {
-                var g = buckets[key];
-                var mergedInfo = g.parts.filter(Boolean).join('\n').trim();
-                var binShown = g.bins.length ? g.bins[0] : '000000';
-                var prod = {
-                    kind_ui: g.isLead ? 'log' : 'card',
-                    full_info: mergedInfo,
-                    price: Math.round(g.total * 100) / 100,
-                    bin: binShown,
-                    base: g.base !== undefined ? g.base : (g.isLead ? '—' : ''),
-                    refundable: !!g.refundable
-                };
-                out.push(buildOrderRecord(prod, purchaseDateIso, {
-                    checkoutId: checkoutId,
-                    id: 'ORD' + purchaseMs + '_' + j + '_' + Math.floor(Math.random() * 9999)
-                }));
-            });
-            return out;
-        }
-
-        async function persistOrderDetails(orderDetails) {
-            if (!orderDetails || !userData) return;
-            await persistOrderDetailsBulk([orderDetails]);
-        }
-
-        async function persistOrderDetailsBulk(orderDetailsList) {
-            if (!orderDetailsList.length || !userData) return;
-            var username = (userData.username || '').toLowerCase();
-            if (!username) return;
-
-            function appendLocal() {
-                if (!userOrders[username]) userOrders[username] = [];
-                orderDetailsList.forEach(function (rec) {
-                    userOrders[username].push(rec);
-                });
+                
+                const orderDetails = generateOrderDetails(product);
+                userOrders[username].push(orderDetails);
                 localStorage.setItem('pluxoOrders', JSON.stringify(userOrders));
-            }
-
-            if (!userData.firebaseUID) {
-                appendLocal();
                 return;
             }
+            
+            // Save to Firestore
             if (!window.db || !window.firestoreFunctions) {
-                console.warn('Cannot save orders: Firestore not initialized');
-                appendLocal();
+                console.warn('Cannot save order: Firestore not initialized');
                 return;
             }
+            
             try {
-                var docMod = window.firestoreFunctions;
-                var docFn = docMod.doc;
-                var getDocFn = docMod.getDoc;
-                var setDocFn = docMod.setDoc;
-                var updateDocFn = docMod.updateDoc;
-                var arrayUnionFn = docMod.arrayUnion;
-                var userDocRef = docFn(window.db, 'userOrders', userData.firebaseUID);
-                var userDoc = await getDocFn(userDocRef);
+                const { doc, getDoc, setDoc, updateDoc, arrayUnion } = window.firestoreFunctions;
+                const orderDetails = generateOrderDetails(product);
+                const userDocRef = doc(window.db, 'userOrders', userData.firebaseUID);
+                
+                // Get existing orders or create new document
+                const userDoc = await getDoc(userDocRef);
                 if (userDoc.exists()) {
-                    await updateDocFn(userDocRef, {
-                        orders: arrayUnionFn.apply(null, orderDetailsList)
+                    // Add order to existing array
+                    await updateDoc(userDocRef, {
+                        orders: arrayUnion(orderDetails)
                     });
                 } else {
-                    await setDocFn(userDocRef, {
-                        orders: orderDetailsList.slice(),
+                    // Create new document with first order
+                    await setDoc(userDocRef, {
+                        orders: [orderDetails],
                         username: userData.username.toLowerCase(),
                         createdAt: new Date().toISOString()
                     });
                 }
-                appendLocal();
-                console.log('Order batch saved to Firestore');
+                
+                // Also update local cache for immediate UI update
+                const username = userData.username.toLowerCase();
+                if (!userOrders[username]) {
+                    userOrders[username] = [];
+                }
+                userOrders[username].push(orderDetails);
+                localStorage.setItem('pluxoOrders', JSON.stringify(userOrders));
+                
+                console.log("Order saved to Firestore");
             } catch (error) {
-                console.error('Error saving orders to Firestore:', error);
-                appendLocal();
+                console.error("Error saving order to Firestore:", error);
+                // Fallback to localStorage
+                const username = userData.username.toLowerCase();
+                if (!userOrders[username]) {
+                    userOrders[username] = [];
+                }
+                const orderDetails = generateOrderDetails(product);
+                userOrders[username].push(orderDetails);
+                localStorage.setItem('pluxoOrders', JSON.stringify(userOrders));
             }
-        }
-
-        async function saveOrder(product) {
-            await persistOrderDetails(generateOrderDetails(product));
         }
 
         // Load orders from Firestore
@@ -15187,16 +14576,6 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
                 return l.trim();
             }).filter(Boolean).length;
             return n > 0 ? n : 1;
-        }
-
-        function ordersTerminalQtyLabel(order, lineCountOptional) {
-            var n =
-                typeof lineCountOptional === 'number'
-                    ? lineCountOptional
-                    : ordersTerminalCardLines(order.full_info);
-            var kk = String(order.kind || 'card').toLowerCase();
-            if (kk === 'log') return n === 1 ? '1 item' : n + ' items';
-            return n === 1 ? '1 card' : n + ' cards';
         }
 
         function ordersTerminalGetAllForUser(username) {
@@ -15285,51 +14664,8 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
                 showAnimatedPopup('Info', 'Nothing to extract', 'info');
                 return;
             }
-            ordersExtractModalOpen(blob);
+            ordersTerminalPlainCopy(blob);
         }
-
-        function ordersExtractModalOpen(text) {
-            var overlay = document.getElementById('ordersExtractModal');
-            var ta = document.getElementById('ordersExtractTextarea');
-            if (!overlay || !ta) {
-                ordersTerminalPlainCopy(text);
-                return;
-            }
-            window.__ordersExtractBlob = String(text || '');
-            ta.value = window.__ordersExtractBlob;
-            overlay.classList.add('open');
-            overlay.setAttribute('aria-hidden', 'false');
-        }
-
-        function ordersExtractModalClose() {
-            var overlay = document.getElementById('ordersExtractModal');
-            if (overlay) {
-                overlay.classList.remove('open');
-                overlay.setAttribute('aria-hidden', 'true');
-            }
-            window.__ordersExtractBlob = '';
-        }
-
-        function ordersExtractModalCopy() {
-            var t = window.__ordersExtractBlob || '';
-            if (!t.trim()) return;
-            ordersTerminalPlainCopy(t);
-        }
-
-        function ordersExtractModalDownload() {
-            var t = window.__ordersExtractBlob || '';
-            if (!t.trim()) return;
-            var un = (userData && userData.username) ? String(userData.username).toLowerCase() : 'user';
-            var a = document.createElement('a');
-            a.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(t);
-            a.download = 'goatys-cards-' + un + '-' + Date.now() + '.txt';
-            a.click();
-        }
-
-        window.ordersExtractModalOpen = ordersExtractModalOpen;
-        window.ordersExtractModalClose = ordersExtractModalClose;
-        window.ordersExtractModalCopy = ordersExtractModalCopy;
-        window.ordersExtractModalDownload = ordersExtractModalDownload;
 
         function ordersDetailModalClose() {
             var overlay = document.getElementById('ordersDetailModal');
@@ -15378,11 +14714,9 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
 
             var dt = new Date(o.purchaseDate);
             var nLines = ordersTerminalCardLines(o.full_info);
-            var qtyReadable = ordersTerminalQtyLabel(o, nLines);
-            if (lc) lc.textContent = qtyReadable;
+            if (lc) lc.textContent = nLines === 1 ? '1 card' : String(nLines) + ' cards';
             if (meta) {
-                meta.textContent =
-                    dt.toLocaleString() + ' • ' + qtyReadable + ' • $' + (parseFloat(o.price) || 0).toFixed(2);
+                meta.textContent = dt.toLocaleString() + ' • ' + nLines + ' cards • $' + (parseFloat(o.price) || 0).toFixed(2);
             }
 
             var fi = window.__ordersTerminalDetailBlob;
@@ -15563,18 +14897,15 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
                 var dtStr = new Date(o.purchaseDate).toLocaleString();
                 var priceStr = '$' + (parseFloat(o.price) || 0).toFixed(2);
                 var idAttr = String(o.id || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-                var kk = String(o.kind || 'card').toLowerCase();
-                var chipLbl = kk === 'log' ? 'logs' : (kk === 'bulk' ? 'bulk' : 'cards');
-                var subQty = ordersTerminalQtyLabel(o, nCards).replace(/&/g,'&amp;').replace(/</g,'&lt;');
                 return (
                     '<div class="orders-terminal-row" role="button" tabindex="0" data-order-id="' + idAttr + '">' +
                     '<div>' +
                     '<input type="checkbox" class="order-check orders-terminal-checkbox" data-id="' + idAttr + '" onchange="updateSelectedCount()">' +
                     '</div>' +
                     '<div>' +
-                    '<div class="orders-terminal-row-left"><span class="orders-terminal-chip">' + chipLbl.replace(/</g,'&lt;') + '</span></div>' +
+                    '<div class="orders-terminal-row-left"><span class="orders-terminal-chip">cards</span></div>' +
                     '<div class="orders-terminal-title">' + title.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</div>' +
-                    '<div class="orders-terminal-sub">' + subQty + '</div>' +
+                    '<div class="orders-terminal-sub">' + String(nCards) + ' cards</div>' +
                     '<span class="orders-terminal-status">completed</span>' +
                     '</div>' +
                     '<div class="orders-terminal-meta">' +
@@ -16348,39 +15679,19 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
                 loginForm.addEventListener('submit', (e) => {
                     e.preventDefault();
                     const username = document.getElementById("username").value.trim();
-                    const passwordEl = document.getElementById("password");
-                    const password = passwordEl ? passwordEl.value : '';
-                    const passStep = document.getElementById('loginPasswordStep');
-                    const idStep = document.getElementById('loginIdentifierStep');
-                    const captchaEl = document.getElementById("captchaAnswer");
+                    const password = document.getElementById("password").value;
+                    const captchaAns = document.getElementById("captchaAnswer").value.trim();
                     
-                    if (!username) { showAnimatedPopup('Error', 'Enter email, username, or account number', 'error'); return; }
-
-                    if (passStep && passStep.hidden) {
-                        passStep.hidden = false;
-                        if (idStep) idStep.hidden = true;
-                        var btn = document.getElementById('loginContinueBtn');
-                        var title = document.getElementById('loginTitle');
-                        var sub = document.getElementById('loginSubtitle');
-                        var back = document.getElementById('loginBackBtn');
-                        if (btn) btn.textContent = 'sign in →';
-                        if (title) title.textContent = 'welcome back';
-                        if (sub) sub.textContent = 'enter your password to continue';
-                        if (back) back.classList.add('is-visible');
-                        if (passwordEl) setTimeout(function () { passwordEl.focus(); }, 0);
-                        return;
-                    }
-
+                    // Validate inputs
+                    if (!username) { showAnimatedPopup('Error', 'Enter username', 'error'); return; }
                     if (!password) { showAnimatedPopup('Error', 'Enter password', 'error'); return; }
-
-                    if (captchaEl) {
-                        const captchaAns = captchaEl.value.trim();
-                        if (typeof captchaAnswer !== 'undefined' && parseInt(captchaAns) !== captchaAnswer) {
-                            showAnimatedPopup('Error', 'Wrong captcha answer', 'error');
-                            if (typeof genCaptcha === 'function') genCaptcha();
-                            captchaEl.value = '';
-                            return;
-                        }
+                    
+                    // Validate captcha if it exists
+                    if (typeof captchaAnswer !== 'undefined' && parseInt(captchaAns) !== captchaAnswer) {
+                        showAnimatedPopup('Error', 'Wrong captcha answer', 'error');
+                        if (typeof genCaptcha === 'function') genCaptcha();
+                        document.getElementById("captchaAnswer").value = '';
+                        return;
                     }
                     
                     login(username, password);
@@ -16428,13 +15739,11 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
             });
         }
 
-        // Add ripple effect to buttons (bind once — rebinding on every DOM mutation froze Submit)
+        // Add ripple effect to buttons
         function addRippleEffect() {
             const buttons = document.querySelectorAll('.btn, .btn-primary, .btn-secondary, .btn-sm, .btn-create-ticket, .btn-view-ticket');
             
             buttons.forEach(button => {
-                if (button.dataset.rippleBound === '1') return;
-                button.dataset.rippleBound = '1';
                 button.addEventListener('click', function(e) {
                     const ripple = document.createElement('span');
                     const rect = this.getBoundingClientRect();
@@ -16446,7 +15755,6 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
                     ripple.style.left = x + 'px';
                     ripple.style.top = y + 'px';
                     ripple.classList.add('ripple-effect');
-                    ripple.style.pointerEvents = 'none';
                     
                     this.appendChild(ripple);
                     
@@ -16567,7 +15875,6 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
 
         // Initialize all animations on page load
         document.addEventListener('DOMContentLoaded', function() {
-            if (typeof pluxoInitStockBases === 'function') pluxoInitStockBases();
             initScrollReveal();
             addRippleEffect();
             staggerListItems();
@@ -16602,34 +15909,23 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
                 var dd = document.getElementById('topUserDropdown');
                 var trig = document.getElementById('topUserTrigger');
                 if (!dd || dd.hasAttribute('hidden')) return;
-                if (e.target.closest && e.target.closest('#topUserDropdown')) return;
                 if (trig && trig.contains(e.target)) return;
+                if (dd.contains(e.target)) return;
                 if (typeof closeTopUserDropdown === 'function') closeTopUserDropdown();
             });
         });
 
         // Re-initialize animations when content changes dynamically
-        var _animReinitTimer = null;
         const observer = new MutationObserver(function(mutations) {
-            var shouldReinit = false;
-            for (var i = 0; i < mutations.length; i++) {
-                var mutation = mutations[i];
-                if (!mutation.addedNodes.length) continue;
-                for (var n = 0; n < mutation.addedNodes.length; n++) {
-                    var node = mutation.addedNodes[n];
-                    if (node.nodeType !== 1) continue;
-                    if (node.classList && node.classList.contains('ripple-effect')) continue;
-                    shouldReinit = true;
-                    break;
+            mutations.forEach(function(mutation) {
+                if (mutation.addedNodes.length) {
+                    setTimeout(() => {
+                        staggerListItems();
+                        addRippleEffect();
+                        initScrollReveal();
+                    }, 100);
                 }
-                if (shouldReinit) break;
-            }
-            if (!shouldReinit) return;
-            clearTimeout(_animReinitTimer);
-            _animReinitTimer = setTimeout(function () {
-                staggerListItems();
-                addRippleEffect();
-            }, 250);
+            });
         });
 
         // Start observing
@@ -16648,27 +15944,9 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
             }, 500);
         }
 
-        function pluxoDismissStrayPopups() {
-            document.querySelectorAll('.animated-popup-overlay').forEach(function (el) {
-                if (el.id !== 'animatedPopupOverlay' && el.id !== 'vipTelegramModal') {
-                    el.remove();
-                }
-            });
-        }
-
-        function pluxoEnsurePopupOverlay() {
-            var overlay = document.getElementById('animatedPopupOverlay');
-            if (!overlay) return null;
-            if (overlay.parentElement !== document.body) {
-                document.body.appendChild(overlay);
-            }
-            return overlay;
-        }
-
         // Animated Popup System
         function showAnimatedPopup(title, message, type = 'info') {
-            pluxoDismissStrayPopups();
-            const overlay = pluxoEnsurePopupOverlay();
+            const overlay = document.getElementById('animatedPopupOverlay');
             const popup = document.getElementById('animatedPopup');
             const icon = document.getElementById('popupIcon');
             const titleEl = document.getElementById('popupTitle');
@@ -16676,6 +15954,7 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
             
             if (!overlay || !popup) return;
             
+            // Set icon based on type
             const icons = {
                 success: '✅',
                 error: '❌',
@@ -16686,18 +15965,18 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
             icon.textContent = icons[type] || '✨';
             titleEl.textContent = title;
             messageEl.textContent = message;
+            
+            // Update popup class
             popup.className = 'animated-popup ' + type;
+            
+            // Show popup
             overlay.style.display = 'flex';
-            document.body.style.overflow = 'hidden';
         }
 
         function closeAnimatedPopup() {
             const overlay = document.getElementById('animatedPopupOverlay');
             if (overlay) {
                 overlay.style.display = 'none';
-            }
-            if (!document.querySelector('.modal-overlay.active, .modal-bg.active, #vipTelegramModal[style*="flex"]')) {
-                document.body.style.overflow = '';
             }
         }
 
@@ -16948,21 +16227,213 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
         window.approveWithProof = approveWithProof;
         window.rejectWithProof = rejectWithProof;
 
-        // Auth state listener — record Firebase UID for legacy features, but balance is
-        // ALWAYS authoritative from the Pluxo backend (state.json via /api/balance/refresh).
-        // Firestore is NOT read here; doing so was overwriting bot-credited balances with stale 0s.
+        // Auth state listener - auto-load balance when user is authenticated
         onAuthStateChanged(auth, async (user) => {
             if (!user) return;
+
+            // Ensure userData has firebaseUID
             if (window.userData) {
                 window.userData.firebaseUID = user.uid;
-                try { localStorage.setItem('pluxoUser', JSON.stringify(window.userData)); } catch (_) {}
             }
-            // Pull fresh balance straight from the bot's backend.
-            try {
-                if (typeof loadUserBalanceFromFirestore === 'function') {
-                    await loadUserBalanceFromFirestore();
+
+            // Check users collection first (by username) - this is where admin loads balance
+            let balanceFromUsers = null;
+            let balanceFromUserBalances = null;
+            
+            if (window.userData && window.userData.username && window.db && window.firestoreFunctions) {
+                try {
+                    const { collection, doc, getDoc } = window.firestoreFunctions;
+                    const normalized = window.userData.username.toLowerCase().trim();
+                    const usersRef = collection(window.db, 'users');
+                    const userDocRef = doc(usersRef, normalized);
+                    const userDoc = await getDoc(userDocRef);
+                    
+                    if (userDoc.exists()) {
+                        const userDataFromFirebase = userDoc.data();
+                        balanceFromUsers = {
+                            balance: parseFloat(userDataFromFirebase.balance || 0),
+                            totalRecharge: parseFloat(userDataFromFirebase.totalRecharge || 0)
+                        };
+                    }
+                } catch (err) {
+                    console.log('Could not check users collection:', err);
                 }
-            } catch (_) {}
+            }
+            
+            // Also check userBalances collection (by UID)
+            if (window.db && window.firestoreFunctions) {
+                try {
+                    const { doc, getDoc, setDoc } = window.firestoreFunctions;
+                    const userRef = doc(window.db, "userBalances", user.uid);
+                    const snap = await getDoc(userRef);
+                    
+                    if (snap.exists()) {
+                        const balanceData = snap.data();
+                        balanceFromUserBalances = {
+                            balance: parseFloat(balanceData.balance || 0),
+                            totalRecharge: parseFloat(balanceData.totalRecharge || 0)
+                        };
+                    }
+                } catch (err) {
+                    console.log('Could not check userBalances collection:', err);
+                }
+            }
+            
+            // Use the higher balance (in case they're out of sync)
+            let finalBalance = 0;
+            let finalTotalRecharge = 0;
+            
+            if (balanceFromUsers && balanceFromUserBalances) {
+                // Both exist, use the higher balance
+                finalBalance = Math.max(balanceFromUsers.balance, balanceFromUserBalances.balance);
+                finalTotalRecharge = Math.max(balanceFromUsers.totalRecharge, balanceFromUserBalances.totalRecharge);
+            } else if (balanceFromUsers) {
+                finalBalance = balanceFromUsers.balance;
+                finalTotalRecharge = balanceFromUsers.totalRecharge;
+            } else if (balanceFromUserBalances) {
+                finalBalance = balanceFromUserBalances.balance;
+                finalTotalRecharge = balanceFromUserBalances.totalRecharge;
+            } else {
+                // Neither exists, use localStorage or 0
+                finalBalance = window.userData ? parseFloat(window.userData.balance || 0) : 0;
+                finalTotalRecharge = window.userData ? parseFloat(window.userData.totalRecharge || 0) : 0;
+            }
+            
+            // Update userBalances collection to ensure it exists and is synced
+            if (window.db && window.firestoreFunctions) {
+                try {
+                    const { doc, setDoc } = window.firestoreFunctions;
+                    const userRef = doc(window.db, "userBalances", user.uid);
+                    await setDoc(userRef, {
+                        username: window.userData ? window.userData.username.toLowerCase() : (user.email ? user.email.split('@')[0] : 'user'),
+                        balance: finalBalance,
+                        totalRecharge: finalTotalRecharge,
+                        updatedAt: new Date().toISOString(),
+                        createdAt: new Date().toISOString()
+                    }, { merge: true });
+                } catch (err) {
+                    console.log('Could not update userBalances:', err);
+                }
+            }
+            
+            // Update local userData
+            if (window.userData) {
+                const mergePrevBal = parseFloat(window.userData.balance || 0);
+                window.userData.balance = finalBalance;
+                window.userData.totalRecharge = finalTotalRecharge;
+                window.userData.firebaseUID = user.uid;
+                
+                // Update localStorage with Firestore data
+                localStorage.setItem('pluxoUser', JSON.stringify(window.userData));
+                
+                // Update UI immediately
+                if (typeof updateUI === 'function') updateUI();
+                var __mpBal = mergePrevBal;
+                var __fbBal = finalBalance;
+                setTimeout(function () {
+                    if (typeof window.maybeCelebrateBalanceBump === 'function') {
+                        window.maybeCelebrateBalanceBump(__mpBal, __fbBal);
+                    }
+                }, 420);
+            }
+            
+            // Set up real-time listener for balance updates (so user sees changes when admin updates balance)
+            if (window.userData && window.userData.username && window.db) {
+                const normalized = window.userData.username.toLowerCase().trim();
+                
+                // Listen to users collection (by username) - this is where admin loads balance
+                if (window.firestoreFunctions) {
+                    try {
+                        const { doc, onSnapshot } = window.firestoreFunctions;
+                        const usersRef = doc(window.db, 'users', normalized);
+                        const unsubscribeUsers = onSnapshot(usersRef, (docSnapshot) => {
+                            if (docSnapshot.exists()) {
+                            const userDataFromFirebase = docSnapshot.data();
+                            const newBalance = parseFloat(userDataFromFirebase.balance || 0);
+                            const newTotalRecharge = parseFloat(userDataFromFirebase.totalRecharge || 0);
+                            
+                            // Only update if balance actually changed (to avoid unnecessary updates)
+                            if (window.userData && (
+                                Math.abs((window.userData.balance || 0) - newBalance) > 0.01 ||
+                                Math.abs((window.userData.totalRecharge || 0) - newTotalRecharge) > 0.01
+                            )) {
+                                const oldBalance = window.userData.balance || 0;
+                                window.userData.balance = newBalance;
+                                window.userData.totalRecharge = newTotalRecharge;
+                                
+                                // Update localStorage
+                                localStorage.setItem('pluxoUser', JSON.stringify(window.userData));
+                                
+                                // Update UI with animation
+                                if (typeof updateUI === 'function') {
+                                    updateUI();
+                                    if (typeof window.maybeCelebrateBalanceBump === 'function') {
+                                        window.maybeCelebrateBalanceBump(oldBalance, newBalance);
+                                    }
+                                }
+                            }
+                            }
+                        }, (error) => {
+                            console.log('Error listening to users collection:', error);
+                        });
+                        
+                        // Store unsubscribe function to clean up later if needed
+                        window.balanceListenerUnsubscribe = unsubscribeUsers;
+                    } catch (err) {
+                        console.log('Could not set up balance listener:', err);
+                    }
+                    
+                    // Also listen to userBalances collection (by UID) as backup
+                    try {
+                        const { doc: docFn, onSnapshot: onSnapshotFn } = window.firestoreFunctions;
+                        const userBalanceRef = docFn(window.db, 'userBalances', user.uid);
+                        const unsubscribeUserBalances = onSnapshotFn(userBalanceRef, (docSnapshot) => {
+                            if (docSnapshot.exists()) {
+                            const balanceData = docSnapshot.data();
+                            const newBalance = parseFloat(balanceData.balance || 0);
+                            const newTotalRecharge = parseFloat(balanceData.totalRecharge || 0);
+                            
+                            // Only update if balance actually changed
+                            if (window.userData && (
+                                Math.abs((window.userData.balance || 0) - newBalance) > 0.01 ||
+                                Math.abs((window.userData.totalRecharge || 0) - newTotalRecharge) > 0.01
+                            )) {
+                                const oldBalance = window.userData.balance || 0;
+                                window.userData.balance = newBalance;
+                                window.userData.totalRecharge = newTotalRecharge;
+                                
+                                // Update localStorage
+                                localStorage.setItem('pluxoUser', JSON.stringify(window.userData));
+                                
+                                // Update UI
+                                if (typeof updateUI === 'function') {
+                                    updateUI();
+                                    if (typeof window.maybeCelebrateBalanceBump === 'function') {
+                                        window.maybeCelebrateBalanceBump(oldBalance, newBalance);
+                                    }
+                                }
+                            }
+                            }
+                        }, (error) => {
+                            console.log('Error listening to userBalances collection:', error);
+                        });
+                        
+                        // Store unsubscribe function
+                        if (window.balanceListenerUnsubscribe) {
+                            // If we already have one, combine them
+                            const oldUnsubscribe = window.balanceListenerUnsubscribe;
+                            window.balanceListenerUnsubscribe = () => {
+                                oldUnsubscribe();
+                                unsubscribeUserBalances();
+                            };
+                        } else {
+                            window.balanceListenerUnsubscribe = unsubscribeUserBalances;
+                        }
+                    } catch (err) {
+                        console.log('Could not set up userBalances listener:', err);
+                    }
+                }
+            }
         });
     </script>
 </body>
