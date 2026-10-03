@@ -14472,15 +14472,7 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
         window.refreshProductsAfterStockUpload = refreshProductsAfterStockUpload;
 
         function renderProducts() {
-            const issuersFallback = [
-                'BANK OF AMERICA, NATIONAL ASSOCIATION',
-                'JPMORGAN CHASE BANK, NA',
-                'CAPITAL ONE, NA',
-                'WELLS FARGO BANK, NA',
-                'TD BANK, NA'
-            ];
             const statesFb = ['IL', 'MD', 'CA', 'TX', 'NY', 'FL'];
-            const levelsFb = ['CLASSIC', 'TRADITIONAL', 'ENHANCED'];
 
             function escAttr(s) {
                 return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -14506,9 +14498,10 @@ const requestRef = doc(firestoreDb, 'balanceRequests', requestId);
                 const rowIdx = start + idx;
                 const binDigits = String(p.bin || '000000').replace(/\D/g, '').substring(0, 6).padEnd(6, '0');
                 const maskedBin = `${binDigits}******`;
-                const ctype = String(p.card_type || '').trim() || ((rowIdx % 2 === 0) ? 'DEBIT' : 'CREDIT');
-                const level = String(p.level || '').trim() || levelsFb[rowIdx % levelsFb.length];
-                const issuerTxt = shortIssuer((p.issuer || '').trim() || issuersFallback[rowIdx % issuersFallback.length]);
+                const ctype = String(p.card_type || '').trim() || '\u2014';
+                const level = String(p.level || '').trim() || '\u2014';
+                const issuerRaw = String(p.issuer || p.bank || '').trim();
+                const issuerTxt = issuerRaw ? shortIssuer(issuerRaw) : '\u2014';
                 const st = String(p.state || '').trim() || statesFb[rowIdx % statesFb.length];
                 const zipShown = String(p.zip || '').trim();
                 const zipDisp = zipShown || '\u2014';

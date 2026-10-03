@@ -1909,6 +1909,86 @@ def _stock_part(parts: list[str], idx: int) -> str:
     return ""
 
 
+_EMDASH_SPLIT = re.compile(r"\s*[—–]\s*")
+_TRAILER_LABEL_SKIP = frozenset(
+    {"TICKET CARD", "CARD", "CARD INFO", "BIN DETAILS", "DETAILS"}
+)
+_CARD_BRAND_TOKENS = frozenset({"VISA", "MASTERCARD", "MC", "AMEX", "DISCOVER", "DINERS"})
+
+
+def _metadata_from_emdash_chunks(chunks: list[str]) -> dict[str, str]:
+    """Parse chunks like TICKET CARD / VISA DEBIT CLASSIC / ISSUER NAME / US."""
+    work = [c.strip() for c in chunks if c and c.strip()]
+    while work and work[0].upper() in _TRAILER_LABEL_SKIP:
+        work.pop(0)
+    if not work:
+        return {}
+    meta: dict[str, str] = {}
+    if len(work) >= 2:
+        tail = work[-1].upper().replace(".", "")
+        if len(tail) <= 3 and tail.isalpha():
+            meta["country_code"] = tail
+            work = work[:-1]
+    if len(work) >= 2:
+        meta["issuer"] = work[-1].strip()
+        work = work[:-1]
+    if work:
+        scheme_tokens = work[0].upper().split()
+        if scheme_tokens and scheme_tokens[0] in _CARD_BRAND_TOKENS:
+            meta["brand"] = "MASTERCARD" if scheme_tokens[0] == "MC" else scheme_tokens[0]
+            if len(scheme_tokens) > 1:
+                meta["card_type"] = scheme_tokens[1]
+            if len(scheme_tokens) > 2:
+                meta["level"] = " ".join(scheme_tokens[2:])
+        elif len(work) >= 3:
+            b0 = work[0].upper()
+            if b0 in _CARD_BRAND_TOKENS:
+                meta["brand"] = "MASTERCARD" if b0 == "MC" else b0
+                meta["card_type"] = work[1]
+                meta["level"] = " ".join(work[2:])
+    return meta
+
+
+def _split_line_emdash_trailer(line: str) -> tuple[str, dict[str, str]]:
+    """If the last pipe field contains em-dash metadata, peel it off for parsing."""
+    if "|" not in line or not re.search(r"[—–]", line):
+        return line, {}
+    parts = line.split("|")
+    last = parts[-1].strip()
+    if not re.search(r"[—–]", last):
+        return line, {}
+    em_parts = [p.strip() for p in _EMDASH_SPLIT.split(last) if p.strip()]
+    if len(em_parts) < 2:
+        return line, {}
+    parts[-1] = em_parts[0]
+    normalized = "|".join(parts)
+    meta = _metadata_from_emdash_chunks(em_parts[1:])
+    return normalized, meta
+
+
+def _apply_card_metadata_to_row(
+    row: dict[str, Any],
+    meta: dict[str, str],
+    *,
+    country_override: str | None,
+) -> None:
+    if not meta:
+        return
+    if meta.get("brand"):
+        row["brand"] = meta["brand"]
+    if meta.get("card_type"):
+        row["card_type"] = meta["card_type"]
+    if meta.get("level"):
+        row["level"] = meta["level"]
+    if meta.get("issuer"):
+        iss = meta["issuer"]
+        row["bank"] = iss
+        row["issuer"] = iss
+    cc = meta.get("country_code")
+    if cc and not country_override:
+        row["country"] = _frontend_country(cc)
+
+
 def build_stock_row_from_line(
     card_raw: str,
     product_id: int,
@@ -1931,9 +2011,10 @@ def build_stock_row_from_line(
     def _nz(s: str | None) -> bool:
         return bool(s is not None and str(s).strip())
 
-    _CARD_BRANDS = frozenset({"VISA", "MASTERCARD", "AMEX", "DISCOVER", "MC"})
+    _CARD_BRANDS = _CARD_BRAND_TOKENS
 
-    line = card_raw.strip()
+    original_line = card_raw.strip()
+    line, em_meta = _split_line_emdash_trailer(original_line)
     bin6 = extract_bin(line)
     brand = _brand_from_bin(bin6)
     known_bases = all_known_stock_bases_unlocked()
@@ -1946,7 +2027,7 @@ def build_stock_row_from_line(
         "base": safe_base,
         "refundable": True,
         "price": round(float(price_val), 2),
-        "full_info": line,
+        "full_info": original_line,
         "has_name": False,
         "has_address": False,
         "has_zip": False,
@@ -1960,8 +2041,16 @@ def build_stock_row_from_line(
     }
     co = normalize_stock_upload_country(country_override) if country_override else None
     if "|" not in line or line.count("|") < 8:
+        parts_short = [p.strip() for p in line.split("|")]
+        if len(parts_short) >= 5:
+            row["has_name"] = _nz(parts_short[4])
+        if len(parts_short) >= 6:
+            row["has_phone"] = _nz(parts_short[5])
+        if len(parts_short) >= 7:
+            row["has_mail"] = _nz(parts_short[6]) or ("@" in parts_short[6])
         if co:
             row["country"] = _frontend_country(co)
+        _apply_card_metadata_to_row(row, em_meta, country_override=co)
         return row
     parts = [p.strip() for p in line.split("|")]
     if len(parts) < 9:
@@ -1999,6 +2088,7 @@ def build_stock_row_from_line(
         iss = _stock_part(parts, idx["issuer"])
         row["bank"] = iss
         row["issuer"] = iss
+        _apply_card_metadata_to_row(row, em_meta, country_override=co)
         return row
 
     row["has_phone"] = _nz(_stock_part(parts, idx["phone"]))
@@ -2021,6 +2111,7 @@ def build_stock_row_from_line(
         if len(tail) > 3:
             row["bank"] = tail[3]
             row["issuer"] = tail[3]
+    _apply_card_metadata_to_row(row, em_meta, country_override=co)
     return row
 
 
