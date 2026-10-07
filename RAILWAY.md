@@ -14,7 +14,7 @@ Pluxo is a **Flask** app exposed as **`pluxo_backend:app`**, served with **Gunic
 | Variable | Purpose |
 |----------|---------|
 | `TELEGRAM_BOT_TOKEN` | Bot API token (@BotFather) |
-| `OWNER_TELEGRAM_ID` | Numeric Telegram user ID of the owner |
+| `OWNER_TELEGRAM_ID` | Owner Telegram user id(s), comma-separated (defaults to four built-in ids if unset) |
 | `AUTH_SECRET_KEY` | Secret for sessions / auth (set a long random string) |
 | `PLUXO_WEBHOOK_SECRET` | Shared secret used by integrations / webhooks |
 
